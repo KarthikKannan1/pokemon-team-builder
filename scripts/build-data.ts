@@ -137,6 +137,92 @@ for (const r of readCsv('pokemon_moves')) {
   byMon.get(mon)!.set(`${move}|${method}|${level}`, [move, method, level])
 }
 
+// ---------------------------------------------------------------- Pokédex sections per game
+const dexNames = new Map(readCsv('pokedexes').map((d) => [d.id, d.identifier]))
+
+/** version group id → pokedex ids */
+const dexesByVg = new Map<number, string[]>()
+for (const r of readCsv('pokedex_version_groups')) {
+  const vg = Number(r.version_group_id)
+  if (!dexesByVg.has(vg)) dexesByVg.set(vg, [])
+  dexesByVg.get(vg)!.push(r.pokedex_id)
+}
+
+/** pokedex id → [number in that dex, species id] */
+const dexEntries = new Map<string, [number, number][]>()
+for (const r of readCsv('pokemon_dex_numbers')) {
+  if (!dexEntries.has(r.pokedex_id)) dexEntries.set(r.pokedex_id, [])
+  dexEntries
+    .get(r.pokedex_id)!
+    .push([Number(r.pokedex_number), Number(r.species_id)])
+}
+
+/** Games without a National Pokédex (or where the regional one already is it). */
+const NO_NATIONAL = new Set([
+  'red-blue',
+  'yellow',
+  'sun-moon',
+  'ultra-sun-ultra-moon',
+  'lets-go',
+  'sword-shield',
+  'scarlet-violet',
+])
+
+/** "kalos-central" → "Kalos Central" */
+const humanize = (id: string) =>
+  id
+    .split('-')
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ')
+
+interface DexSection {
+  name: string
+  species: number[] // National Dex numbers, in this dex's order
+}
+
+function dexSectionsFor(game: (typeof ALL_GAMES)[number]): DexSection[] {
+  const sections: DexSection[] = []
+  const seen = new Set<string>()
+  for (const vg of game.versionGroupIds) {
+    for (const dexId of dexesByVg.get(vg) ?? []) {
+      if (seen.has(dexId)) continue
+      seen.add(dexId)
+      const entries = [...(dexEntries.get(dexId) ?? [])].sort(
+        (a, b) => a[0] - b[0],
+      )
+      sections.push({
+        name: `${humanize(dexNames.get(dexId)!)} Pokédex`,
+        species: entries.map((e) => e[1]),
+      })
+    }
+  }
+  if (!NO_NATIONAL.has(game.id)) {
+    const national = [...speciesById.values()]
+      .filter((s) => Number(s.generation_id) <= game.gen)
+      .map((s) => Number(s.id))
+      .sort((a, b) => a - b)
+    sections.push({ name: 'National Pokédex', species: national })
+  }
+  return sections
+}
+
+// ---------------------------------------------------------------- Pokédex entries (English)
+const versionNames = new Map(
+  readCsv('versions').map((v) => [v.id, v.identifier]),
+)
+/** version → (species id → text) */
+const flavorByVersion = new Map<string, Map<number, string>>()
+for (const r of readCsv('pokemon_species_flavor_text')) {
+  if (r.language_id !== '9') continue // 9 = English
+  const version = versionNames.get(r.version_id)!
+  if (!flavorByVersion.has(version)) flavorByVersion.set(version, new Map())
+  const text = r.flavor_text
+    .replace(/[\f\n\u00ad]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  flavorByVersion.get(version)!.set(Number(r.species_id), text)
+}
+
 // ---------------------------------------------------------------- write one file per game
 mkdirSync(`${OUT}/games`, { recursive: true })
 for (const game of ALL_GAMES) {
@@ -144,9 +230,24 @@ for (const game of ALL_GAMES) {
   for (const [mon, entries] of learnsets.get(game.id) ?? []) {
     learn[mon] = [...entries.values()]
   }
+
   const tm: Record<string, string> = {}
   for (const vg of game.versionGroupIds) {
     for (const [move, label] of machineLabels.get(vg) ?? []) tm[move] ??= label
   }
-  writeJson(`games/${game.id}`, { learn, tm })
+
+  const dex: Record<number, Record<string, string>> = {}
+  for (const v of game.versions) {
+    for (const [species, text] of flavorByVersion.get(v) ?? []) {
+      dex[species] ??= {}
+      dex[species][v] = text
+    }
+  }
+
+  writeJson(`games/${game.id}`, {
+    learn,
+    tm,
+    sections: dexSectionsFor(game),
+    dex,
+  })
 }
