@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "fetch-raw": "tsx scripts/fetch-raw.ts"
   },
   "dependencies": {
     "@pkmn/dex": "^0.11.0",
