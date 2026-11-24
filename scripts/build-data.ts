@@ -251,3 +251,83 @@ for (const game of ALL_GAMES) {
     dex,
   })
 }
+
+// ---------------------------------------------------------------- generation data (Showdown)
+/** Only moves that appear in some learnset — keeps files small. */
+const usedMoves = new Set<string>()
+for (const byMon of learnsets.values())
+  for (const entries of byMon.values())
+    for (const [move] of entries.values()) usedMoves.add(move)
+
+mkdirSync(`${OUT}/gens`, { recursive: true })
+for (let gen = 1; gen <= 9; gen++) {
+  const D = Dex.forGen(gen)
+
+  const species: Record<string, unknown> = {}
+  for (const m of mons.values()) {
+    const s = D.species.get(m.id)
+    if (!s.exists || s.gen > gen) continue // didn't exist yet
+    const b = s.baseStats
+    species[m.id] = {
+      types: s.types,
+      stats: [b.hp, b.atk, b.def, b.spa, b.spd, b.spe],
+      abilities: gen >= 3 ? s.abilities : {}, // { 0: 'Blaze', H: 'Solar Power' }
+    }
+  }
+
+  const moves: Record<string, unknown> = {}
+  for (const id of usedMoves) {
+    const mv = D.moves.get(id)
+    if (!mv.exists || mv.gen > gen) continue
+    moves[id] = {
+      name: mv.name,
+      type: mv.type,
+      category: mv.category, // Physical / Special / Status
+      power: mv.basePower || null,
+      accuracy: mv.accuracy === true ? null : mv.accuracy, // true = never misses
+      pp: mv.pp,
+      priority: mv.priority,
+      desc: mv.shortDesc,
+    }
+  }
+
+  const items: Record<string, unknown> = {}
+  if (gen >= 2) {
+    for (const it of D.items.all()) {
+      if (!it.exists || it.gen > gen || it.isNonstandard) continue
+      items[it.id] = {
+        name: it.name,
+        desc: it.shortDesc,
+        megaStone: it.megaStone, // e.g. 'Charizard-Mega-X'
+        user: it.itemUser, // which Pokémon it's for
+      }
+    }
+  }
+
+  writeJson(`gens/${gen}`, { species, moves, items })
+}
+
+// ---------------------------------------------------------------- core: natures, types, events
+const natures = Dex.natures
+  .all()
+  .map((n) => ({ name: n.name, plus: n.plus ?? null, minus: n.minus ?? null }))
+const types = Dex.types
+  .all()
+  .filter((t) => !t.isNonstandard)
+  .map((t) => t.name)
+
+const events: Record<
+  string,
+  { gen: number; level: number; moves: string[] }[]
+> = {}
+for (const m of mons.values()) {
+  const ls = await Dex.learnsets.get(m.id)
+  if (!ls?.eventData?.length) continue
+  events[m.id] = ls.eventData.map((e) => ({
+    gen: e.generation,
+    level: e.level ?? 1,
+    moves: (e.moves ?? []).map(toID),
+  }))
+}
+
+writeJson('core', { natures, types, events })
