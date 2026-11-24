@@ -108,3 +108,7 @@ export interface Pokemon {
   ot: string
   tid: string
 }
+export interface Names {
+  moves: Record<string, string>
+  items: Record<string, string>
+}

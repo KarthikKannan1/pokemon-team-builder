@@ -331,3 +331,10 @@ for (const m of mons.values()) {
 }
 
 writeJson('core', { natures, types, events })
+
+// ---------------------------------------------------------------- display names (all gens)
+const names = {
+  moves: Object.fromEntries(Dex.moves.all().map((m) => [m.id, m.name])),
+  items: Object.fromEntries(Dex.items.all().map((i) => [i.id, i.name])),
+}
+writeJson('names', names)
