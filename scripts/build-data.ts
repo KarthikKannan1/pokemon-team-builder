@@ -82,3 +82,71 @@ const monList = [...mons.values()].sort(
   (a, b) => a.num - b.num || a.pokeapiId - b.pokeapiId,
 )
 writeJson('pokemon', monList)
+
+// ---------------------------------------------------------------- moves: PokéAPI id → Showdown id
+const MOVE_FIXES: Record<string, string> = { 'hi-jump-kick': 'highjumpkick' }
+const moveIdMap = new Map<string, string>()
+for (const m of readCsv('moves')) {
+  const move = Dex.moves.get(MOVE_FIXES[m.identifier] ?? m.identifier)
+  if (move.exists) moveIdMap.set(m.id, move.id)
+}
+console.log(`✓ ${moveIdMap.size} moves mapped`)
+
+// ---------------------------------------------------------------- TM/HM/TR labels per version group
+const itemNames = new Map(readCsv('items').map((i) => [i.id, i.identifier]))
+/** version group id → (move id → "TM25") */
+const machineLabels = new Map<number, Map<string, string>>()
+for (const r of readCsv('machines')) {
+  const move = moveIdMap.get(r.move_id)
+  const label = itemNames.get(r.item_id)?.toUpperCase() // "tm25" → "TM25"
+  if (!move || !label) continue
+  const vg = Number(r.version_group_id)
+  if (!machineLabels.has(vg)) machineLabels.set(vg, new Map())
+  machineLabels.get(vg)!.set(move, label)
+}
+
+// ---------------------------------------------------------------- learnsets per game
+/** PokéAPI learn method id → our code. 1 level-up, 2 egg, 3 tutor, 4 machine. */
+const METHODS: Record<string, string> = {
+  '1': 'L',
+  '2': 'E',
+  '3': 'T',
+  '4': 'M',
+}
+type LearnEntry = [move: string, method: string, level: number]
+
+/** version group id → our game id (DLC groups point at their base game) */
+const vgToGame = new Map<number, string>()
+for (const game of ALL_GAMES)
+  for (const vg of game.versionGroupIds) vgToGame.set(vg, game.id)
+
+/** game id → Pokémon id → (dedupe key → entry) */
+const learnsets = new Map<string, Map<string, Map<string, LearnEntry>>>()
+
+for (const r of readCsv('pokemon_moves')) {
+  const gameId = vgToGame.get(Number(r.version_group_id))
+  const method = METHODS[r.pokemon_move_method_id]
+  const mon = pokeapiToId.get(r.pokemon_id)
+  const move = moveIdMap.get(r.move_id)
+  if (!gameId || !method || !mon || !move) continue // other games, special methods, unmatched
+
+  const level = method === 'L' ? Math.max(1, Number(r.level) || 1) : 0
+  if (!learnsets.has(gameId)) learnsets.set(gameId, new Map())
+  const byMon = learnsets.get(gameId)!
+  if (!byMon.has(mon)) byMon.set(mon, new Map())
+  byMon.get(mon)!.set(`${move}|${method}|${level}`, [move, method, level])
+}
+
+// ---------------------------------------------------------------- write one file per game
+mkdirSync(`${OUT}/games`, { recursive: true })
+for (const game of ALL_GAMES) {
+  const learn: Record<string, LearnEntry[]> = {}
+  for (const [mon, entries] of learnsets.get(game.id) ?? []) {
+    learn[mon] = [...entries.values()]
+  }
+  const tm: Record<string, string> = {}
+  for (const vg of game.versionGroupIds) {
+    for (const [move, label] of machineLabels.get(vg) ?? []) tm[move] ??= label
+  }
+  writeJson(`games/${game.id}`, { learn, tm })
+}
