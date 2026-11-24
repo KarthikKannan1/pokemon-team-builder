@@ -9,6 +9,16 @@ export default defineConfig([
   globalIgnores(['dist']),
   {
     files: ['**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^_',
+          argsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+        },
+      ],
+    },
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
