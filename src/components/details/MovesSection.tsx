@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { useCore, useGame, useGameGen, useMons } from '../../lib/data'
+import { statGen, useCore, useGame, useGameGen, useMons } from '../../lib/data'
 import { moveOptions } from '../../lib/legality'
+import { effectiveCategory } from '../../lib/matchups'
 import {
   applyObtained,
   selectedEventMoves,
@@ -18,6 +19,12 @@ const CATEGORY_COLOR: Record<GenMove['category'], string> = {
   Special: '#2266cc',
   Status: '#8c888c',
 }
+
+/** The category as it worked in that generation (Gen 1–3: decided by type). */
+const withCategory = (m: GenMove, gen: number): GenMove => ({
+  ...m,
+  category: effectiveCategory(m, gen),
+})
 
 /** Game-style category icon: burst = Physical, rings = Special, yin-yang = Status. */
 export function CategoryIcon({ category }: { category: GenMove['category'] }) {
@@ -168,8 +175,9 @@ export function MovesSection({
   const game = useGame(mon.game)
   const entry = mons.get(mon.species)
   const speciesName = entry?.name
+  const g = statGen(mon.game)
 
-  // 1) what the learnsets allow  2) + how it was obtained (egg gating, event moves)
+  // 1) what the learnsets allow  2) + how it was obtained (egg gating, event moves)  3) era-correct categories
   const options = useMemo(() => {
     const base = moveOptions({ mons, game, gen }, mon)
     const eventMoves = selectedEventMoves(
@@ -183,8 +191,8 @@ export function MovesSection({
       eventMoves,
       moves: gen.moves,
       speciesName: speciesName ?? mon.species,
-    })
-  }, [mons, game, gen, mon, core, entry, speciesName])
+    }).map((o) => ({ ...o, move: withCategory(o.move, g) }))
+  }, [mons, game, gen, mon, core, entry, speciesName, g])
 
   const byId = useMemo(() => new Map(options.map((o) => [o.id, o])), [options])
   const [editing, setEditing] = useState<number | null>(null)
@@ -207,11 +215,12 @@ export function MovesSection({
       <div className="grid gap-3 sm:grid-cols-2">
         {[0, 1, 2, 3].map((i) => {
           const id = mon.moves[i]
+          const move = id ? gen.moves[id] : undefined
           return id ? (
             <MoveCard
               key={i}
               id={id}
-              move={gen.moves[id]}
+              move={move && withCategory(move, g)}
               option={byId.get(id)}
               onEdit={() => setEditing(i)}
               onRemove={() => remove(i)}
