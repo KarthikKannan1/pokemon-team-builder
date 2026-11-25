@@ -8,20 +8,10 @@ import { DetailsPanel } from './components/details/DetailsPanel'
 
 const Loading = () => <p className="text-slate-500">Loading…</p>
 
-function Panel({
-  title,
-  children,
-  className = '',
-}: {
-  title: string
-  children: React.ReactNode
-  className?: string
-}) {
+function Panel({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <section className={`rounded-2xl bg-slate-900 p-4 ${className}`}>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-        {title}
-      </h2>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">{title}</h2>
       <Suspense fallback={<Loading />}>{children}</Suspense>
     </section>
   )
@@ -36,14 +26,18 @@ export default function App() {
         <TeamSwitcher />
       </header>
 
-      <main className="grid gap-4 p-6 lg:grid-cols-[24rem_1fr]">
-        <Panel title="Team">
-          <TeamList />
-        </Panel>
-        <Panel title="Box">
-          <BoxGrid />
-        </Panel>
-        <Panel title="Details" className="lg:col-span-2">
+      {/* Left: team + box. Right: details (sticky, scrolls on its own). Stacks on small screens. */}
+      <main className="grid gap-4 p-6 lg:grid-cols-[29rem_1fr] lg:items-start">
+        <div className="space-y-4">
+          <Panel title="Team">
+            <TeamList />
+          </Panel>
+          <Panel title="Box">
+            <BoxGrid />
+          </Panel>
+        </div>
+
+        <Panel title="Details" className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
           <DetailsPanel />
         </Panel>
       </main>
