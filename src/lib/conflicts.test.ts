@@ -61,9 +61,7 @@ describe('blockers', () => {
       'red-blue',
       ctxFor('red-blue', 1),
     )
-    expect(c.blockers).toEqual([
-      "Togekiss doesn't exist in Red / Blue / Yellow.",
-    ])
+    expect(c.blockers).toEqual(["Togekiss doesn't exist in Red / Blue."])
   })
 })
 
