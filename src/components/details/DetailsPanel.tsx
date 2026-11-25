@@ -20,10 +20,28 @@ const NORMAL_DVS: Pokemon['dvs'] = [15, 15, 15, 15]
 const control =
   'w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm'
 
-/** Label on the left, control on the right — one row per field. */
-function Field({ label, children }: { label: string; children: ReactNode }) {
+/** Same height as the team grid (3 cards × 10rem + 2 × 0.5rem gaps) so the panels line up. */
+const TOP_ROW_HEIGHT = 'lg:h-[31rem]'
+
+const SPAN = {
+  2: 'col-span-2',
+  3: 'col-span-3',
+  4: 'col-span-4',
+  6: 'col-span-6',
+} as const
+
+/** Small label above its control. `span` = columns out of 6 (2 = third, 3 = half, 6 = full row). */
+function Field({
+  label,
+  span,
+  children,
+}: {
+  label: string
+  span: keyof typeof SPAN
+  children: ReactNode
+}) {
   return (
-    <div className="grid grid-cols-[7rem_1fr] items-center gap-3 text-sm">
+    <div className={`${SPAN[span]} flex flex-col gap-1`}>
       <span className="text-xs text-slate-400">{label}</span>
       {children}
     </div>
@@ -81,11 +99,11 @@ function Details({ mon }: { mon: Pokemon }) {
   return (
     <div className="space-y-6">
       {/* ================================================================ top: sprite card | fields (50 / 50) */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className={`grid gap-6 md:grid-cols-2 ${TOP_ROW_HEIGHT}`}>
         {/* ---------------------------------------------------------------- sprite card */}
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-slate-800/60 p-4">
-          {/* Animated GIF at up to 2× its size (smooth); never larger than the box. HOME render is the fallback. */}
-          <div className="grid h-80 w-full place-items-center">
+        <div className="flex h-full min-h-80 flex-col items-center rounded-2xl bg-slate-800/60 p-4">
+          {/* Animated GIF at up to 2× its size (smooth); never larger than the space. HOME render is the fallback. */}
+          <div className="grid min-h-0 w-full flex-1 place-items-center">
             {shown && (
               <Sprite
                 key={`${shown.id}-${mon.shiny}`}
@@ -117,7 +135,7 @@ function Details({ mon }: { mon: Pokemon }) {
 
           {/* form toggle */}
           {forms.length > 1 && (
-            <div className="mt-4 w-full max-w-xs space-y-2">
+            <div className="mt-3 w-full max-w-xs space-y-2">
               <div className="flex flex-wrap justify-center gap-1">
                 {forms.map((x) => (
                   <button
@@ -150,10 +168,32 @@ function Details({ mon }: { mon: Pokemon }) {
           )}
         </div>
 
-        {/* ---------------------------------------------------------------- fields, one per row */}
-        <div className="flex flex-col gap-2.5">
+        {/* ---------------------------------------------------------------- fields: 6-column grid */}
+        <div className="grid grid-cols-6 content-start gap-x-3 gap-y-3 overflow-y-auto">
+          <Field label={`Nickname (max ${f.nicknameMax})`} span={4}>
+            <input
+              value={mon.nickname}
+              maxLength={f.nicknameMax}
+              placeholder={entry?.name}
+              onChange={(e) => set({ nickname: e.target.value })}
+              className={control}
+            />
+          </Field>
+          <Field label="Level" span={2}>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={mon.level}
+              onChange={(e) =>
+                set({ level: Math.max(1, Math.min(100, +e.target.value || 1)) })
+              }
+              className={control}
+            />
+          </Field>
+
           {game && game.versions.length > 1 && (
-            <Field label="Version">
+            <Field label="Version" span={3}>
               <select
                 value={mon.version}
                 onChange={(e) => set({ version: e.target.value })}
@@ -167,30 +207,8 @@ function Details({ mon }: { mon: Pokemon }) {
               </select>
             </Field>
           )}
-          <Field label={`Nickname (max ${f.nicknameMax})`}>
-            <input
-              value={mon.nickname}
-              maxLength={f.nicknameMax}
-              placeholder={entry?.name}
-              onChange={(e) => set({ nickname: e.target.value })}
-              className={control}
-            />
-          </Field>
-          <Field label="Level">
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={mon.level}
-              onChange={(e) =>
-                set({ level: Math.max(1, Math.min(100, +e.target.value || 1)) })
-              }
-              className={control}
-            />
-          </Field>
-
           {f.gender && (
-            <Field label="Gender">
+            <Field label="Gender" span={3}>
               <select
                 value={mon.gender}
                 onChange={(e) =>
@@ -206,31 +224,30 @@ function Details({ mon }: { mon: Pokemon }) {
           )}
 
           {f.ability && (
-            <Field label="Ability">
-              <div>
-                <select
-                  value={mon.ability}
-                  onChange={(e) => set({ ability: e.target.value })}
-                  className={control}
-                >
-                  {abilities.map(([slot, name]) => (
-                    <option key={slot} value={name}>
-                      {name}
-                      {slot === 'H' ? ' (Hidden)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {shownId !== mon.species && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    In battle: {shownSpecies?.abilities['0']}
-                  </p>
-                )}
-              </div>
+            <Field
+              label={
+                shownId !== mon.species
+                  ? `Ability (battle: ${shownSpecies?.abilities['0']})`
+                  : 'Ability'
+              }
+              span={3}
+            >
+              <select
+                value={mon.ability}
+                onChange={(e) => set({ ability: e.target.value })}
+                className={control}
+              >
+                {abilities.map(([slot, name]) => (
+                  <option key={slot} value={name}>
+                    {name}
+                    {slot === 'H' ? ' (Hidden)' : ''}
+                  </option>
+                ))}
+              </select>
             </Field>
           )}
-
           {f.nature && (
-            <Field label="Nature">
+            <Field label="Nature" span={3}>
               <select
                 value={mon.nature}
                 onChange={(e) => set({ nature: e.target.value })}
@@ -241,14 +258,14 @@ function Details({ mon }: { mon: Pokemon }) {
                     {n.name}
                     {n.plus
                       ? ` (+${n.plus.toUpperCase()} −${n.minus!.toUpperCase()})`
-                      : ' (neutral)'}
+                      : ''}
                   </option>
                 ))}
               </select>
             </Field>
           )}
 
-          <Field label="Held item">
+          <Field label="Held item" span={3}>
             <IconSelect
               options={heldItems}
               value={mon.item}
@@ -256,9 +273,8 @@ function Details({ mon }: { mon: Pokemon }) {
               disabled={!f.heldItem}
             />
           </Field>
-
           {f.ball && (
-            <Field label="Poké Ball">
+            <Field label="Poké Ball" span={3}>
               <IconSelect
                 options={balls}
                 value={mon.ball}
@@ -269,7 +285,7 @@ function Details({ mon }: { mon: Pokemon }) {
           )}
 
           {f.tera && (
-            <Field label="Tera type">
+            <Field label="Tera type" span={2}>
               <select
                 value={mon.teraType}
                 onChange={(e) => set({ teraType: e.target.value })}
@@ -282,10 +298,9 @@ function Details({ mon }: { mon: Pokemon }) {
               </select>
             </Field>
           )}
-
           {/* shiny: Gen 3+ checkbox · Gen 2 decided by DVs · Gen 1 "shiny after transfer" */}
-          <Field label="Shiny">
-            <div className="text-sm">
+          <Field label="Shiny" span={f.tera ? 4 : 6}>
+            <div className="flex h-[34px] items-center text-sm">
               {f.statSystem !== 'dv' && (
                 <label className="flex items-center gap-2">
                   <input
@@ -331,14 +346,14 @@ function Details({ mon }: { mon: Pokemon }) {
           </Field>
 
           {/* record-keeping (not checked) */}
-          <Field label="Met location">
+          <Field label="Met location" span={6}>
             <input
               value={mon.metLocation}
               onChange={(e) => set({ metLocation: e.target.value })}
               className={control}
             />
           </Field>
-          <Field label="Met level">
+          <Field label="Met level" span={2}>
             <input
               type="number"
               min={0}
@@ -352,14 +367,14 @@ function Details({ mon }: { mon: Pokemon }) {
               className={control}
             />
           </Field>
-          <Field label="OT">
+          <Field label="OT" span={2}>
             <input
               value={mon.ot}
               onChange={(e) => set({ ot: e.target.value })}
               className={control}
             />
           </Field>
-          <Field label="Trainer ID">
+          <Field label="Trainer ID" span={2}>
             <input
               value={mon.tid}
               onChange={(e) => set({ tid: e.target.value })}
