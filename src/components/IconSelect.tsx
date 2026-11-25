@@ -57,7 +57,7 @@ export function IconSelect({
           displayValue={(o: IconOption | null) => o?.name ?? ''}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={noneLabel}
-          className={`w-full rounded-lg border border-slate-700 bg-slate-950 py-1.5 pr-8 text-sm disabled:opacity-40 ${
+          className={`w-full rounded-lg border border-slate-700 bg-slate-950 py-1.5 pr-8 text-sm text-slate-100 placeholder:text-slate-500 disabled:opacity-40 ${
             selected?.icon ? 'pl-10' : 'pl-2'
           }`}
         />
@@ -66,9 +66,10 @@ export function IconSelect({
         </ComboboxButton>
       </div>
 
+      {/* Rendered in a portal (outside our layout), so colours are set explicitly */}
       <ComboboxOptions
         anchor="bottom start"
-        className="z-50 max-h-72 w-(--input-width) overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 p-1 [--anchor-gap:4px] empty:invisible"
+        className="z-50 max-h-72 w-(--input-width) overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 p-1 shadow-xl [--anchor-gap:4px] empty:invisible"
       >
         <ComboboxOption
           value={null}
@@ -80,7 +81,7 @@ export function IconSelect({
           <ComboboxOption
             key={o.id}
             value={o}
-            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm data-focus:bg-slate-800 data-selected:text-red-400"
+            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-slate-100 data-focus:bg-slate-800 data-selected:font-semibold data-selected:text-red-400"
           >
             {o.icon ? (
               <img
@@ -92,7 +93,7 @@ export function IconSelect({
             ) : (
               <span className="h-7 w-7" />
             )}
-            {o.name}
+            <span className="text-slate-100">{o.name}</span>
           </ComboboxOption>
         ))}
       </ComboboxOptions>

@@ -84,8 +84,8 @@ function Details({ mon }: { mon: Pokemon }) {
       <div className="grid gap-6 md:grid-cols-2">
         {/* ---------------------------------------------------------------- sprite card */}
         <div className="flex flex-col items-center justify-center rounded-2xl bg-slate-800/60 p-4">
-          {/* Animated sprite fills the box; pixelated scaling keeps it crisp. HOME render is the fallback. */}
-          <div className="h-80 w-full">
+          {/* Animated GIF at up to 2× its size (smooth); never larger than the box. HOME render is the fallback. */}
+          <div className="grid h-80 w-full place-items-center">
             {shown && (
               <Sprite
                 key={`${shown.id}-${mon.shiny}`}
@@ -94,7 +94,8 @@ function Details({ mon }: { mon: Pokemon }) {
                   homeSprite(shown.pokeapiId, mon.shiny),
                 ]}
                 alt={shown.name}
-                className="h-full w-full [image-rendering:pixelated]"
+                maxScale={2}
+                className="max-h-full max-w-full"
               />
             )}
           </div>
