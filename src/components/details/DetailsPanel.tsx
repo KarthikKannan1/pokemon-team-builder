@@ -20,10 +20,11 @@ const NORMAL_DVS: Pokemon['dvs'] = [15, 15, 15, 15]
 const control =
   'w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm'
 
+/** Label on the left, control on the right — one row per field. */
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 text-xs text-slate-400">
-      <span>{label}</span>
+    <div className="grid grid-cols-[7rem_1fr] items-center gap-3 text-sm">
+      <span className="text-xs text-slate-400">{label}</span>
       {children}
     </div>
   )
@@ -79,12 +80,12 @@ function Details({ mon }: { mon: Pokemon }) {
 
   return (
     <div className="space-y-6">
-      {/* ================================================================ top: sprite card | fields */}
-      <div className="grid gap-6 md:grid-cols-[18rem_1fr]">
+      {/* ================================================================ top: sprite card | fields (50 / 50) */}
+      <div className="grid gap-6 md:grid-cols-2">
         {/* ---------------------------------------------------------------- sprite card */}
-        <div className="flex flex-col items-center rounded-2xl bg-slate-800/60 p-4">
-          {/* Sprites keep their natural (in-game) size; only shrunk if bigger than the box */}
-          <div className="grid h-64 w-full place-items-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl bg-slate-800/60 p-4">
+          {/* Animated sprite fills the box; pixelated scaling keeps it crisp. HOME render is the fallback. */}
+          <div className="h-80 w-full">
             {shown && (
               <Sprite
                 key={`${shown.id}-${mon.shiny}`}
@@ -93,11 +94,11 @@ function Details({ mon }: { mon: Pokemon }) {
                   homeSprite(shown.pokeapiId, mon.shiny),
                 ]}
                 alt={shown.name}
-                className="max-h-full max-w-full"
+                className="h-full w-full [image-rendering:pixelated]"
               />
             )}
           </div>
-          <h3 className="mt-2 text-xl font-bold">
+          <h3 className="mt-2 text-2xl font-bold">
             {mon.nickname || entry?.name}
           </h3>
           {(mon.nickname || shownId !== mon.species) && (
@@ -115,7 +116,7 @@ function Details({ mon }: { mon: Pokemon }) {
 
           {/* form toggle */}
           {forms.length > 1 && (
-            <div className="mt-4 w-full space-y-2">
+            <div className="mt-4 w-full max-w-xs space-y-2">
               <div className="flex flex-wrap justify-center gap-1">
                 {forms.map((x) => (
                   <button
@@ -148,8 +149,8 @@ function Details({ mon }: { mon: Pokemon }) {
           )}
         </div>
 
-        {/* ---------------------------------------------------------------- info fields */}
-        <div className="grid grid-cols-2 content-start gap-3">
+        {/* ---------------------------------------------------------------- fields, one per row */}
+        <div className="flex flex-col gap-2.5">
           {game && game.versions.length > 1 && (
             <Field label="Version">
               <select
@@ -204,25 +205,26 @@ function Details({ mon }: { mon: Pokemon }) {
           )}
 
           {f.ability && (
-            <Field
-              label={
-                shownId !== mon.species
-                  ? `Ability (in battle: ${shownSpecies?.abilities['0']})`
-                  : 'Ability'
-              }
-            >
-              <select
-                value={mon.ability}
-                onChange={(e) => set({ ability: e.target.value })}
-                className={control}
-              >
-                {abilities.map(([slot, name]) => (
-                  <option key={slot} value={name}>
-                    {name}
-                    {slot === 'H' ? ' (Hidden)' : ''}
-                  </option>
-                ))}
-              </select>
+            <Field label="Ability">
+              <div>
+                <select
+                  value={mon.ability}
+                  onChange={(e) => set({ ability: e.target.value })}
+                  className={control}
+                >
+                  {abilities.map(([slot, name]) => (
+                    <option key={slot} value={name}>
+                      {name}
+                      {slot === 'H' ? ' (Hidden)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {shownId !== mon.species && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    In battle: {shownSpecies?.abilities['0']}
+                  </p>
+                )}
+              </div>
             </Field>
           )}
 
@@ -281,49 +283,51 @@ function Details({ mon }: { mon: Pokemon }) {
           )}
 
           {/* shiny: Gen 3+ checkbox · Gen 2 decided by DVs · Gen 1 "shiny after transfer" */}
-          <div className="col-span-2 flex items-center gap-3 text-sm">
-            {f.statSystem !== 'dv' && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={mon.shiny}
-                  onChange={(e) => set({ shiny: e.target.checked })}
-                />{' '}
-                ✨ Shiny
-              </label>
-            )}
-            {f.gen === 2 && (
-              <label
-                className="flex items-center gap-2"
-                title="In Gen 2, shininess is decided by DVs"
-              >
-                <input
-                  type="checkbox"
-                  checked={isShinyDVs(mon.dvs)}
-                  onChange={(e) =>
-                    set({
-                      dvs: e.target.checked ? SHINY_DVS : NORMAL_DVS,
-                      shiny: e.target.checked,
-                    })
-                  }
-                />
-                ✨ Shiny (sets DVs)
-              </label>
-            )}
-            {f.gen === 1 &&
-              (isShinyDVs(mon.dvs) ? (
-                <span className="rounded bg-amber-500/20 px-2 py-1 text-amber-300">
-                  ✨ Shiny after transfer
-                </span>
-              ) : (
-                <button
-                  onClick={() => set({ dvs: SHINY_DVS })}
-                  className="rounded border border-slate-700 px-2 py-1 text-xs hover:bg-slate-800"
+          <Field label="Shiny">
+            <div className="text-sm">
+              {f.statSystem !== 'dv' && (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={mon.shiny}
+                    onChange={(e) => set({ shiny: e.target.checked })}
+                  />{' '}
+                  ✨ Shiny
+                </label>
+              )}
+              {f.gen === 2 && (
+                <label
+                  className="flex items-center gap-2"
+                  title="In Gen 2, shininess is decided by DVs"
                 >
-                  Set shiny-on-transfer DVs
-                </button>
-              ))}
-          </div>
+                  <input
+                    type="checkbox"
+                    checked={isShinyDVs(mon.dvs)}
+                    onChange={(e) =>
+                      set({
+                        dvs: e.target.checked ? SHINY_DVS : NORMAL_DVS,
+                        shiny: e.target.checked,
+                      })
+                    }
+                  />
+                  ✨ Shiny (sets DVs)
+                </label>
+              )}
+              {f.gen === 1 &&
+                (isShinyDVs(mon.dvs) ? (
+                  <span className="rounded bg-amber-500/20 px-2 py-1 text-amber-300">
+                    ✨ Shiny after transfer
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => set({ dvs: SHINY_DVS })}
+                    className="rounded border border-slate-700 px-2 py-1 text-xs hover:bg-slate-800"
+                  >
+                    Set shiny-on-transfer DVs
+                  </button>
+                ))}
+            </div>
+          </Field>
 
           {/* record-keeping (not checked) */}
           <Field label="Met location">
@@ -364,22 +368,17 @@ function Details({ mon }: { mon: Pokemon }) {
         </div>
       </div>
 
-      {/* ================================================================ bottom: stats, full width */}
+      {/* ================================================================ bottom: stats | EVs in one card */}
       {shownSpecies && (
-        <div className="rounded-2xl bg-slate-800/40 p-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Stats
-          </h4>
-          <StatsEditor
-            mon={mon}
-            base={shownSpecies.stats}
-            compare={shownId !== mon.species ? baseSpecies?.stats : undefined}
-            gen={statGen(mon.game)}
-            features={f}
-            natures={core.natures}
-            set={set}
-          />
-        </div>
+        <StatsEditor
+          mon={mon}
+          base={shownSpecies.stats}
+          compare={shownId !== mon.species ? baseSpecies?.stats : undefined}
+          gen={statGen(mon.game)}
+          features={f}
+          natures={core.natures}
+          set={set}
+        />
       )}
     </div>
   )
