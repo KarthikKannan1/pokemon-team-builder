@@ -8,7 +8,7 @@ import { Sprite } from './Sprite'
 import { TypeBadge } from './TypeBadge'
 
 export function TeamList() {
-  const { game, teamId, selectedUid, select } = useUi()
+  const { game, teamId, selectedUid, select, openPicker } = useUi()
   const mons = useMons()
   const gen = useGen(dataGen(game))
   const members =
@@ -22,11 +22,13 @@ export function TeamList() {
         const mon = members.find((m) => m.slot === slot)
         if (!mon) {
           return (
-            <li
-              key={slot}
-              className="flex h-20 items-center rounded-xl border border-dashed border-slate-700 px-4 text-sm text-slate-600"
-            >
-              Empty
+            <li key={slot}>
+              <button
+                onClick={() => openPicker(slot)}
+                className="flex h-20 w-full items-center rounded-xl border border-dashed border-slate-700 px-4 text-sm text-slate-500 transition hover:border-red-500 hover:text-red-400"
+              >
+                + Add Pokémon
+              </button>
             </li>
           )
         }

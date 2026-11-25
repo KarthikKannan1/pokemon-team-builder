@@ -1,5 +1,5 @@
-// One entry in the version dropdown. "Games" inside share learnset data
-// (a PokéAPI "version group"); "versions" are the exact cartridges.
+// One entry in the version dropdown = one set of rules (a PokéAPI "version group").
+// "versions" are the exact cartridges, recorded per Pokémon.
 export interface Game {
   id: string // our key, e.g. 'firered-leafgreen'
   versionGroupIds: number[] // PokéAPI version_group ids (DLC merged in)
@@ -12,28 +12,42 @@ export interface GameGroup {
   games: Game[]
 }
 
+/** In release order. */
 export const GAME_GROUPS: GameGroup[] = [
+  // ---- Gen 1
   {
-    id: 'rby',
-    name: 'Red / Blue / Yellow',
+    id: 'rb',
+    name: 'Red / Blue',
     gen: 1,
     games: [
       { id: 'red-blue', versionGroupIds: [1], versions: ['red', 'blue'] },
-      { id: 'yellow', versionGroupIds: [2], versions: ['yellow'] },
     ],
   },
   {
-    id: 'gsc',
-    name: 'Gold / Silver / Crystal',
+    id: 'yellow',
+    name: 'Yellow',
+    gen: 1,
+    games: [{ id: 'yellow', versionGroupIds: [2], versions: ['yellow'] }],
+  },
+  // ---- Gen 2
+  {
+    id: 'gs',
+    name: 'Gold / Silver',
     gen: 2,
     games: [
       { id: 'gold-silver', versionGroupIds: [3], versions: ['gold', 'silver'] },
-      { id: 'crystal', versionGroupIds: [4], versions: ['crystal'] },
     ],
   },
   {
-    id: 'rse',
-    name: 'Ruby / Sapphire / Emerald',
+    id: 'crystal',
+    name: 'Crystal',
+    gen: 2,
+    games: [{ id: 'crystal', versionGroupIds: [4], versions: ['crystal'] }],
+  },
+  // ---- Gen 3
+  {
+    id: 'rs',
+    name: 'Ruby / Sapphire',
     gen: 3,
     games: [
       {
@@ -41,7 +55,6 @@ export const GAME_GROUPS: GameGroup[] = [
         versionGroupIds: [5],
         versions: ['ruby', 'sapphire'],
       },
-      { id: 'emerald', versionGroupIds: [6], versions: ['emerald'] },
     ],
   },
   {
@@ -57,8 +70,15 @@ export const GAME_GROUPS: GameGroup[] = [
     ],
   },
   {
-    id: 'dppt',
-    name: 'Diamond / Pearl / Platinum',
+    id: 'emerald',
+    name: 'Emerald',
+    gen: 3,
+    games: [{ id: 'emerald', versionGroupIds: [6], versions: ['emerald'] }],
+  },
+  // ---- Gen 4
+  {
+    id: 'dp',
+    name: 'Diamond / Pearl',
     gen: 4,
     games: [
       {
@@ -66,8 +86,13 @@ export const GAME_GROUPS: GameGroup[] = [
         versionGroupIds: [8],
         versions: ['diamond', 'pearl'],
       },
-      { id: 'platinum', versionGroupIds: [9], versions: ['platinum'] },
     ],
+  },
+  {
+    id: 'platinum',
+    name: 'Platinum',
+    gen: 4,
+    games: [{ id: 'platinum', versionGroupIds: [9], versions: ['platinum'] }],
   },
   {
     id: 'hgss',
@@ -81,6 +106,7 @@ export const GAME_GROUPS: GameGroup[] = [
       },
     ],
   },
+  // ---- Gen 5
   {
     id: 'bw',
     name: 'Black / White',
@@ -105,6 +131,7 @@ export const GAME_GROUPS: GameGroup[] = [
       },
     ],
   },
+  // ---- Gen 6
   {
     id: 'xy',
     name: 'X / Y',
@@ -123,6 +150,7 @@ export const GAME_GROUPS: GameGroup[] = [
       },
     ],
   },
+  // ---- Gen 7
   {
     id: 'sm',
     name: 'Sun / Moon',
@@ -155,6 +183,7 @@ export const GAME_GROUPS: GameGroup[] = [
       },
     ],
   },
+  // ---- Gen 8
   {
     id: 'swsh',
     name: 'Sword / Shield',
@@ -179,6 +208,7 @@ export const GAME_GROUPS: GameGroup[] = [
       },
     ],
   },
+  // ---- Gen 9
   {
     id: 'sv',
     name: 'Scarlet / Violet',

@@ -3,7 +3,7 @@ import { VersionSelect } from './components/VersionSelect'
 import { TeamSwitcher } from './components/TeamSwitcher'
 import { TeamList } from './components/TeamList'
 import { BoxGrid } from './components/BoxGrid'
-import { DevSeed } from './components/DevSeed'
+import { PickerModal } from './components/PickerModal'
 
 const Loading = () => <p className="text-slate-500">Loading…</p>
 
@@ -33,11 +33,6 @@ export default function App() {
         <h1 className="mr-4 text-lg font-bold">Pokémon Team Builder</h1>
         <VersionSelect />
         <TeamSwitcher />
-        <div className="ml-auto">
-          <Suspense fallback={null}>
-            <DevSeed />
-          </Suspense>
-        </div>
       </header>
 
       <main className="grid gap-4 p-6 lg:grid-cols-[24rem_1fr]">
@@ -53,6 +48,10 @@ export default function App() {
           </p>
         </Panel>
       </main>
+
+      <Suspense fallback={null}>
+        <PickerModal />
+      </Suspense>
     </div>
   )
 }
