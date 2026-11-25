@@ -2,17 +2,25 @@ import { useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { updatePokemon } from '../../db/repo'
-import { statGen, useCore, useGameGen, useMons } from '../../lib/data'
+import { statGen, useCore, useGameGen, useMons, useNames } from '../../lib/data'
 import { activeFormId, itemForms } from '../../lib/forms'
 import { ALL_GAMES } from '../../lib/games'
+import {
+  eventChoices,
+  OBTAINED_LABEL,
+  obtainedChoices,
+  speciesEvents,
+} from '../../lib/obtained'
 import { gameFeatures, UNIVERSAL } from '../../lib/rules'
 import { animatedSprite, homeSprite } from '../../lib/sprites'
 import { isShinyDVs } from '../../lib/stats'
-import type { Pokemon } from '../../lib/types'
+import type { Obtained, Pokemon } from '../../lib/types'
 import { useUi } from '../../store/ui'
 import { IconSelect } from '../IconSelect'
+import { InfoPopover } from '../InfoPopover'
 import { Sprite } from '../Sprite'
 import { TypeBadge } from '../TypeBadge'
+import { MovesSection } from './MovesSection'
 import { StatsEditor } from './StatsEditor'
 
 const SHINY_DVS: Pokemon['dvs'] = [10, 10, 10, 10] // Gen 2 shiny pattern
@@ -20,8 +28,11 @@ const NORMAL_DVS: Pokemon['dvs'] = [15, 15, 15, 15]
 const control =
   'w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm'
 
-/** Same height as the team grid (3 cards × 10rem + 2 × 0.5rem gaps) so the panels line up. */
-const TOP_ROW_HEIGHT = 'lg:h-[31rem]'
+/**
+ * At least as tall as the team grid (3 cards × 10rem + 2 × 0.5rem gaps) so the panels line up,
+ * but allowed to grow (e.g. when the Event field appears) instead of hiding fields.
+ */
+const TOP_ROW_HEIGHT = 'lg:min-h-[31rem]'
 
 const SPAN = {
   2: 'col-span-2',
@@ -48,6 +59,22 @@ function Field({
   )
 }
 
+/** A control with an ⓘ to its right. */
+function WithInfo({
+  children,
+  info,
+}: {
+  children: ReactNode
+  info?: ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1">{children}</div>
+      {info}
+    </div>
+  )
+}
+
 export function DetailsPanel() {
   const uid = useUi((s) => s.selectedUid)
   const mon = useLiveQuery(() => (uid ? db.pokemon.get(uid) : undefined), [uid])
@@ -65,6 +92,7 @@ export function DetailsPanel() {
 function Details({ mon }: { mon: Pokemon }) {
   const mons = useMons()
   const core = useCore()
+  const names = useNames()
   const gen = useGameGen(mon.game)
   const f = gameFeatures(mon.game)
   const game = ALL_GAMES.find((g) => g.id === mon.game)
@@ -95,6 +123,21 @@ function Details({ mon }: { mon: Pokemon }) {
     .sort((a, b) => a.name.localeCompare(b.name))
   const heldItems = allItems.filter((i) => !i.isBall)
   const balls = allItems.filter((i) => i.isBall)
+  const heldItem = gen.items[mon.item]
+  const battleAbility =
+    shownId !== mon.species ? shownSpecies?.abilities['0'] : undefined
+
+  // ---- how it was obtained
+  const obtained: Obtained = mon.obtained ?? 'caught'
+  const events = eventChoices(
+    speciesEvents(core.events, mon.species, entry?.baseSpecies),
+    mon.game,
+  )
+  const eventLabel = (e: (typeof events)[number]['event']) =>
+    `Gen ${e.gen} · Lv ${e.level} · ${e.moves.map((m) => names.moves[m] ?? m).join(', ') || 'no special moves'}`
+
+  // ---- Ball | Shiny | Tera share one row: thirds with Tera, halves without
+  const third = f.tera ? 2 : 3
 
   return (
     <div className="space-y-6">
@@ -169,7 +212,7 @@ function Details({ mon }: { mon: Pokemon }) {
         </div>
 
         {/* ---------------------------------------------------------------- fields: 6-column grid */}
-        <div className="grid grid-cols-6 content-start gap-x-3 gap-y-3 overflow-y-auto">
+        <div className="grid grid-cols-6 content-start gap-x-3 gap-y-3">
           <Field label={`Nickname (max ${f.nicknameMax})`} span={4}>
             <input
               value={mon.nickname}
@@ -226,24 +269,46 @@ function Details({ mon }: { mon: Pokemon }) {
           {f.ability && (
             <Field
               label={
-                shownId !== mon.species
-                  ? `Ability (battle: ${shownSpecies?.abilities['0']})`
-                  : 'Ability'
+                battleAbility ? `Ability (battle: ${battleAbility})` : 'Ability'
               }
               span={3}
             >
-              <select
-                value={mon.ability}
-                onChange={(e) => set({ ability: e.target.value })}
-                className={control}
+              <WithInfo
+                info={
+                  mon.ability && (
+                    <InfoPopover label={`${mon.ability} details`}>
+                      <p className="font-bold">{mon.ability}</p>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-300">
+                        {names.abilities[mon.ability] ??
+                          'No description available.'}
+                      </p>
+                      {battleAbility && battleAbility !== mon.ability && (
+                        <>
+                          <p className="mt-3 font-bold">
+                            {battleAbility} (in battle)
+                          </p>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                            {names.abilities[battleAbility]}
+                          </p>
+                        </>
+                      )}
+                    </InfoPopover>
+                  )
+                }
               >
-                {abilities.map(([slot, name]) => (
-                  <option key={slot} value={name}>
-                    {name}
-                    {slot === 'H' ? ' (Hidden)' : ''}
-                  </option>
-                ))}
-              </select>
+                <select
+                  value={mon.ability}
+                  onChange={(e) => set({ ability: e.target.value })}
+                  className={control}
+                >
+                  {abilities.map(([slot, name]) => (
+                    <option key={slot} value={name}>
+                      {name}
+                      {slot === 'H' ? ' (Hidden)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </WithInfo>
             </Field>
           )}
           {f.nature && (
@@ -266,15 +331,30 @@ function Details({ mon }: { mon: Pokemon }) {
           )}
 
           <Field label="Held item" span={3}>
-            <IconSelect
-              options={heldItems}
-              value={mon.item}
-              onChange={(item) => set({ item })}
-              disabled={!f.heldItem}
-            />
+            <WithInfo
+              info={
+                heldItem && (
+                  <InfoPopover label={`${heldItem.name} details`}>
+                    <p className="font-bold">{heldItem.name}</p>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-300">
+                      {heldItem.desc || 'No description available.'}
+                    </p>
+                  </InfoPopover>
+                )
+              }
+            >
+              <IconSelect
+                options={heldItems}
+                value={mon.item}
+                onChange={(item) => set({ item })}
+                disabled={!f.heldItem}
+              />
+            </WithInfo>
           </Field>
+
+          {/* ---- one row: Poké Ball | Shiny | Tera */}
           {f.ball && (
-            <Field label="Poké Ball" span={3}>
+            <Field label="Poké Ball" span={third}>
               <IconSelect
                 options={balls}
                 value={mon.ball}
@@ -283,23 +363,8 @@ function Details({ mon }: { mon: Pokemon }) {
               />
             </Field>
           )}
-
-          {f.tera && (
-            <Field label="Tera type" span={2}>
-              <select
-                value={mon.teraType}
-                onChange={(e) => set({ teraType: e.target.value })}
-                className={control}
-              >
-                <option value="">—</option>
-                {core.types.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </Field>
-          )}
           {/* shiny: Gen 3+ checkbox · Gen 2 decided by DVs · Gen 1 "shiny after transfer" */}
-          <Field label="Shiny" span={f.tera ? 4 : 6}>
+          <Field label="Shiny" span={third}>
             <div className="flex h-[34px] items-center text-sm">
               {f.statSystem !== 'dv' && (
                 <label className="flex items-center gap-2">
@@ -331,7 +396,7 @@ function Details({ mon }: { mon: Pokemon }) {
               )}
               {f.gen === 1 &&
                 (isShinyDVs(mon.dvs) ? (
-                  <span className="rounded bg-amber-500/20 px-2 py-1 text-amber-300">
+                  <span className="rounded bg-amber-500/20 px-2 py-1 text-xs text-amber-300">
                     ✨ Shiny after transfer
                   </span>
                 ) : (
@@ -344,15 +409,80 @@ function Details({ mon }: { mon: Pokemon }) {
                 ))}
             </div>
           </Field>
+          {f.tera && (
+            <Field label="Tera type" span={2}>
+              <select
+                value={mon.teraType}
+                onChange={(e) => set({ teraType: e.target.value })}
+                className={control}
+              >
+                <option value="">—</option>
+                {core.types.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </Field>
+          )}
 
-          {/* record-keeping (not checked) */}
-          <Field label="Met location" span={6}>
+          {/* how it was obtained → affects egg moves and event moves */}
+          <Field label="Obtained" span={3}>
+            <select
+              value={obtained}
+              onChange={(e) => {
+                const next = e.target.value as Obtained
+                set({
+                  obtained: next,
+                  eventIndex: next === 'event' ? events[0]?.index : undefined,
+                })
+              }}
+              className={control}
+            >
+              {obtainedChoices(mon.game).map((o) => (
+                <option key={o} value={o}>
+                  {OBTAINED_LABEL[o]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Met location" span={3}>
             <input
               value={mon.metLocation}
               onChange={(e) => set({ metLocation: e.target.value })}
               className={control}
             />
           </Field>
+
+          {obtained === 'event' && (
+            <Field label="Event" span={6}>
+              {events.length ? (
+                <select
+                  value={mon.eventIndex ?? ''}
+                  onChange={(e) =>
+                    set({
+                      eventIndex:
+                        e.target.value === ''
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
+                  className={control}
+                >
+                  <option value="">— pick an event —</option>
+                  {events.map((c) => (
+                    <option key={c.index} value={c.index}>
+                      {eventLabel(c.event)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="py-1.5 text-sm text-slate-500">
+                  No known events for this Pokémon up to this generation.
+                </p>
+              )}
+            </Field>
+          )}
+
+          {/* record-keeping (not checked) */}
           <Field label="Met level" span={2}>
             <input
               type="number"
@@ -383,6 +513,9 @@ function Details({ mon }: { mon: Pokemon }) {
           </Field>
         </div>
       </div>
+
+      {/* ================================================================ moves */}
+      <MovesSection mon={mon} set={set} />
 
       {/* ================================================================ bottom: stats | EVs in one card */}
       {shownSpecies && (
