@@ -4,6 +4,7 @@ import { TeamSwitcher } from './components/TeamSwitcher'
 import { TeamList } from './components/TeamList'
 import { BoxGrid } from './components/BoxGrid'
 import { PickerModal } from './components/PickerModal'
+import { DetailsPanel } from './components/details/DetailsPanel'
 
 const Loading = () => <p className="text-slate-500">Loading…</p>
 
@@ -35,17 +36,22 @@ export default function App() {
         <TeamSwitcher />
       </header>
 
-      <main className="grid gap-4 p-6 lg:grid-cols-[24rem_1fr]">
-        <Panel title="Team">
-          <TeamList />
-        </Panel>
-        <Panel title="Box">
-          <BoxGrid />
-        </Panel>
-        <Panel title="Details" className="lg:col-span-2">
-          <p className="text-slate-500">
-            Team overview / selected Pokémon goes here
-          </p>
+      {/* 40% team + box | 60% details (sticky, scrolls on its own). Stacks on small screens. */}
+      <main className="grid gap-4 p-6 lg:grid-cols-[2fr_3fr] lg:items-start">
+        <div className="space-y-4">
+          <Panel title="Team">
+            <TeamList />
+          </Panel>
+          <Panel title="Box">
+            <BoxGrid />
+          </Panel>
+        </div>
+
+        <Panel
+          title="Details"
+          className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
+        >
+          <DetailsPanel />
         </Panel>
       </main>
 

@@ -1,1 +1,13 @@
 @import 'tailwindcss';
+
+/* Hide the browser's number spinners everywhere — they cover the digits.
+   ↑ / ↓ keys still step the value. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
