@@ -260,6 +260,30 @@ for (const game of ALL_GAMES) {
   })
 }
 
+// ---------------------------------------------------------------- universal mode: every move from every game
+/** Pokémon id → (move|method → entry). Keeps the lowest learn level for level-up moves. */
+const universal = new Map<string, Map<string, LearnEntry>>()
+for (const byMon of learnsets.values()) {
+  for (const [mon, entries] of byMon) {
+    if (!universal.has(mon)) universal.set(mon, new Map())
+    const merged = universal.get(mon)!
+    for (const entry of entries.values()) {
+      const [move, method, level] = entry
+      const key = `${move}|${method}`
+      const existing = merged.get(key)
+      if (!existing || level < existing[2]) merged.set(key, entry)
+    }
+  }
+}
+writeJson('games/home', {
+  learn: Object.fromEntries(
+    [...universal].map(([mon, entries]) => [mon, [...entries.values()]]),
+  ),
+  tm: {},
+  sections: [],
+  dex: {},
+})
+
 // ---------------------------------------------------------------- generation data (Showdown)
 /** Only moves that appear in some learnset — keeps files small. */
 const usedMoves = new Set<string>()
@@ -270,8 +294,8 @@ for (const byMon of learnsets.values())
 mkdirSync(`${OUT}/gens`, { recursive: true })
 // gen 0 = universal mode: newest data, plus things later games removed (e.g. Mega Stones)
 for (let gen = 0; gen <= 9; gen++) {
-  const universal = gen === 0
-  const g = universal ? 9 : gen
+  const isUniversal = gen === 0
+  const g = isUniversal ? 9 : gen
   const D = Dex.forGen(g)
 
   const species: Record<string, unknown> = {}
@@ -306,7 +330,7 @@ for (let gen = 0; gen <= 9; gen++) {
   if (g >= 2) {
     for (const it of D.items.all()) {
       const allowed =
-        !it.isNonstandard || (universal && it.isNonstandard === 'Past')
+        !it.isNonstandard || (isUniversal && it.isNonstandard === 'Past')
       if (!it.exists || it.gen > g || !allowed) continue
       items[it.id] = {
         name: it.name,
@@ -347,9 +371,13 @@ for (const m of mons.values()) {
 
 writeJson('core', { natures, types, events })
 
-// ---------------------------------------------------------------- display names (all gens)
+// ---------------------------------------------------------------- display names + descriptions (all gens)
 const names = {
   moves: Object.fromEntries(Dex.moves.all().map((m) => [m.id, m.name])),
   items: Object.fromEntries(Dex.items.all().map((i) => [i.id, i.name])),
+  /** ability name → short description (we store abilities by name) */
+  abilities: Object.fromEntries(
+    Dex.abilities.all().map((a) => [a.name, a.shortDesc]),
+  ),
 }
 writeJson('names', names)

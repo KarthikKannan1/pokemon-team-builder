@@ -85,9 +85,14 @@ export interface CoreData {
 export interface Names {
   moves: Record<string, string>
   items: Record<string, string>
+  /** ability name → short description */
+  abilities: Record<string, string>
 }
 
 // ---------------------------------------------------------------- a saved Pokémon
+/** How it was obtained (PKHeX-style encounter type). */
+export type Obtained = 'caught' | 'hatched' | 'gift' | 'trade' | 'event'
+
 export interface Pokemon {
   uid: string
   species: string // MonEntry id
@@ -114,4 +119,8 @@ export interface Pokemon {
   metLevel: number
   ot: string
   tid: string
+  /** Optional so Pokémon saved before this field existed still load. Missing = 'caught'. */
+  obtained?: Obtained
+  /** Index into that species' event list, when obtained = 'event' */
+  eventIndex?: number
 }
