@@ -34,13 +34,14 @@ console.log('✓ all version groups exist')
 
 // ---------------------------------------------------------------- Pokémon index
 export interface MonEntry {
-  id: string // Showdown id, our main key: 'charizardmegax'
-  name: string // display name: 'Charizard-Mega-X'
-  num: number // National Dex number: 6
-  pokeapiId: number // for sprites: 10034
-  baseSpecies: string // 'charizard'
-  forme?: string // 'Mega-X'
-  prevo?: string // pre-evolution id: 'charmeleon'
+  id: string
+  name: string
+  num: number
+  pokeapiId: number
+  spriteId: string // Showdown sprite name: 'charizard-megax'
+  baseSpecies: string
+  forme?: string
+  prevo?: string
 }
 
 const speciesById = new Map(readCsv('pokemon_species').map((s) => [s.id, s]))
@@ -67,6 +68,7 @@ for (const p of readCsv('pokemon')) {
     name: s.name,
     num: s.num,
     pokeapiId: Number(p.id),
+    spriteId: s.spriteid,
     baseSpecies: toID(s.baseSpecies),
     forme: s.forme || undefined,
     prevo: s.prevo ? toID(s.prevo) : undefined,
@@ -92,8 +94,14 @@ for (const m of readCsv('moves')) {
 }
 console.log(`✓ ${moveIdMap.size} moves mapped`)
 
-// ---------------------------------------------------------------- TM/HM/TR labels per version group
-const itemNames = new Map(readCsv('items').map((i) => [i.id, i.identifier]))
+// ---------------------------------------------------------------- items: TM labels + icon names
+const itemRows = readCsv('items')
+const itemNames = new Map(itemRows.map((i) => [i.id, i.identifier]))
+/** Showdown item id → PokéAPI identifier, used for the item icon URL ("choicescarf" → "choice-scarf") */
+const itemIcons = new Map(
+  itemRows.map((i) => [toID(i.identifier), i.identifier]),
+)
+
 /** version group id → (move id → "TM25") */
 const machineLabels = new Map<number, Map<string, string>>()
 for (const r of readCsv('machines')) {
@@ -260,25 +268,28 @@ for (const byMon of learnsets.values())
     for (const [move] of entries.values()) usedMoves.add(move)
 
 mkdirSync(`${OUT}/gens`, { recursive: true })
-for (let gen = 1; gen <= 9; gen++) {
-  const D = Dex.forGen(gen)
+// gen 0 = universal mode: newest data, plus things later games removed (e.g. Mega Stones)
+for (let gen = 0; gen <= 9; gen++) {
+  const universal = gen === 0
+  const g = universal ? 9 : gen
+  const D = Dex.forGen(g)
 
   const species: Record<string, unknown> = {}
   for (const m of mons.values()) {
     const s = D.species.get(m.id)
-    if (!s.exists || s.gen > gen) continue // didn't exist yet
+    if (!s.exists || s.gen > g) continue // didn't exist yet
     const b = s.baseStats
     species[m.id] = {
       types: s.types,
       stats: [b.hp, b.atk, b.def, b.spa, b.spd, b.spe],
-      abilities: gen >= 3 ? s.abilities : {}, // { 0: 'Blaze', H: 'Solar Power' }
+      abilities: g >= 3 ? s.abilities : {}, // { 0: 'Blaze', H: 'Solar Power' }
     }
   }
 
   const moves: Record<string, unknown> = {}
   for (const id of usedMoves) {
     const mv = D.moves.get(id)
-    if (!mv.exists || mv.gen > gen) continue
+    if (!mv.exists || mv.gen > g) continue
     moves[id] = {
       name: mv.name,
       type: mv.type,
@@ -292,14 +303,18 @@ for (let gen = 1; gen <= 9; gen++) {
   }
 
   const items: Record<string, unknown> = {}
-  if (gen >= 2) {
+  if (g >= 2) {
     for (const it of D.items.all()) {
-      if (!it.exists || it.gen > gen || it.isNonstandard) continue
+      const allowed =
+        !it.isNonstandard || (universal && it.isNonstandard === 'Past')
+      if (!it.exists || it.gen > g || !allowed) continue
       items[it.id] = {
         name: it.name,
         desc: it.shortDesc,
-        megaStone: it.megaStone, // e.g. 'Charizard-Mega-X'
+        icon: itemIcons.get(it.id), // PokéAPI icon name
+        megaStone: it.megaStone, // e.g. { Charizard: 'Charizard-Mega-X' }
         user: it.itemUser, // which Pokémon it's for
+        isBall: it.isPokeball || undefined, // for the Poké Ball dropdown
       }
     }
   }

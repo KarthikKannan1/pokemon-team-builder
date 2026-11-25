@@ -13,6 +13,7 @@ export interface MonEntry {
   name: string
   num: number
   pokeapiId: number
+  spriteId: string
   baseSpecies: string
   forme?: string
   prevo?: string
@@ -55,8 +56,10 @@ export interface GenMove {
 export interface GenItem {
   name: string
   desc: string
+  icon?: string
   megaStone?: Record<string, string>
   user?: string[]
+  isBall?: boolean
 }
 export interface GenData {
   species: Record<string, GenSpecies>
@@ -78,6 +81,10 @@ export interface CoreData {
   natures: Nature[]
   types: string[]
   events: Record<string, EventInfo[]>
+}
+export interface Names {
+  moves: Record<string, string>
+  items: Record<string, string>
 }
 
 // ---------------------------------------------------------------- a saved Pokémon
@@ -107,8 +114,4 @@ export interface Pokemon {
   metLevel: number
   ot: string
   tid: string
-}
-export interface Names {
-  moves: Record<string, string>
-  items: Record<string, string>
 }

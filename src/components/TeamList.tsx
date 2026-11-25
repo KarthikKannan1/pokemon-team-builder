@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { TEAM_SIZE } from '../db/db'
 import { teamMembers } from '../db/repo'
-import { dataGen, useGen, useMons } from '../lib/data'
-import { homeSprite } from '../lib/sprites'
+import { useGameGen, useMons } from '../lib/data'
+import { activeFormId } from '../lib/forms'
+import { homeSprite, itemIcon } from '../lib/sprites'
 import { useUi } from '../store/ui'
 import { Sprite } from './Sprite'
 import { TypeBadge } from './TypeBadge'
@@ -10,7 +11,7 @@ import { TypeBadge } from './TypeBadge'
 export function TeamList() {
   const { game, teamId, selectedUid, select, openPicker } = useUi()
   const mons = useMons()
-  const gen = useGen(dataGen(game))
+  const gen = useGameGen(game)
   const members =
     useLiveQuery(() => (teamId ? teamMembers(teamId) : []), [teamId]) ?? []
 
@@ -33,7 +34,10 @@ export function TeamList() {
           )
         }
         const entry = mons.get(mon.species)
-        const types = gen.species[mon.species]?.types ?? []
+        const form = mons.get(activeFormId(mon, gen, mons)) ?? entry // Mega if holding its stone
+        const types = gen.species[form?.id ?? mon.species]?.types ?? []
+        const item = gen.items[mon.item]
+        const ball = gen.items[mon.ball]
         const selected = mon.uid === selectedUid
         return (
           <li key={mon.uid}>
@@ -45,12 +49,30 @@ export function TeamList() {
                   : 'bg-slate-800 hover:bg-slate-700'
               }`}
             >
-              <Sprite
-                srcs={[homeSprite(entry?.pokeapiId ?? 0, mon.shiny)]}
-                alt=""
-                className="h-16 w-16"
-              />
-              <span className="flex-1 truncate font-semibold">
+              <div className="relative h-16 w-16 shrink-0">
+                <Sprite
+                  srcs={[homeSprite(form?.pokeapiId ?? 0, mon.shiny)]}
+                  alt=""
+                  className="h-16 w-16"
+                />
+                {item?.icon && (
+                  <img
+                    src={itemIcon(item.icon)}
+                    alt={item.name}
+                    title={item.name}
+                    className="absolute -bottom-1 -right-1 h-7 w-7 [image-rendering:pixelated]"
+                  />
+                )}
+              </div>
+              <span className="flex flex-1 items-center gap-1.5 truncate font-semibold">
+                {ball?.icon && (
+                  <img
+                    src={itemIcon(ball.icon)}
+                    alt={ball.name}
+                    title={ball.name}
+                    className="h-5 w-5 [image-rendering:pixelated]"
+                  />
+                )}
                 {mon.nickname || entry?.name}
               </span>
               <span className="text-xs text-slate-400">Lv. {mon.level}</span>

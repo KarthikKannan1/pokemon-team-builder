@@ -4,6 +4,7 @@ import { TeamSwitcher } from './components/TeamSwitcher'
 import { TeamList } from './components/TeamList'
 import { BoxGrid } from './components/BoxGrid'
 import { PickerModal } from './components/PickerModal'
+import { DetailsPanel } from './components/details/DetailsPanel'
 
 const Loading = () => <p className="text-slate-500">Loading…</p>
 
@@ -43,9 +44,7 @@ export default function App() {
           <BoxGrid />
         </Panel>
         <Panel title="Details" className="lg:col-span-2">
-          <p className="text-slate-500">
-            Team overview / selected Pokémon goes here
-          </p>
+          <DetailsPanel />
         </Panel>
       </main>
 
