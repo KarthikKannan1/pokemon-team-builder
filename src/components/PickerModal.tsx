@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { addToTeam } from '../db/repo'
+import { baseStatTotal } from '../lib/bst'
 import { dataGen, useGame, useGen, useMonList } from '../lib/data'
+import { speciesGen } from '../lib/generation'
 import { newPokemon } from '../lib/pokemon'
 import { gameFeatures, UNIVERSAL } from '../lib/rules'
 import { homeSprite, iconSprite } from '../lib/sprites'
+import { TYPE_COLORS } from '../lib/typeColors'
 import type { MonEntry } from '../lib/types'
 import { useUi } from '../store/ui'
 import { Sprite } from './Sprite'
@@ -11,6 +14,9 @@ import { TypeBadge } from './TypeBadge'
 
 /** Forms you get in battle from an item, not ones you catch. */
 const BATTLE_ONLY = /^(Mega|Gmax|Primal|Eternamax|Totem)/
+
+const control =
+  'rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm'
 
 interface Section {
   name: string
@@ -28,13 +34,18 @@ export function PickerModal() {
 function Picker({ slot, teamId }: { slot: number; teamId: string }) {
   const { game, closePicker, select } = useUi()
   const monList = useMonList()
-  const gen = useGen(dataGen(game))
+  const g = dataGen(game) // 0 = universal (newest data)
+  const gen = useGen(g)
   // Hooks can't be conditional, so universal mode loads a game file it simply ignores
   const gameData = useGame(game === UNIVERSAL ? 'scarlet-violet' : game)
 
   const [tab, setTab] = useState(0)
   const [query, setQuery] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  // filters: 0 / '' = any
+  const [genFilter, setGenFilter] = useState(0)
+  const [typeFilter, setTypeFilter] = useState('')
+  const [sort, setSort] = useState<'dex' | 'bst'>('dex')
 
   // Close on Escape
   useEffect(() => {
@@ -71,22 +82,65 @@ function Picker({ slot, teamId }: { slot: number; teamId: string }) {
     return result.filter((s) => s.mons.length)
   }, [game, monList, gameData])
 
+  const bst = (m: MonEntry) => {
+    const s = gen.species[m.id]
+    return s ? baseStatTotal(s.stats, g) : 0
+  }
+
+  // Filter choices: only generations and types that actually appear in this game
+  const { gens, types } = useMemo(() => {
+    const all = sections.flatMap((s) => s.mons)
+    const gens = [...new Set(all.map((m) => speciesGen(m.num)))].sort(
+      (a, b) => a - b,
+    )
+    const present = new Set(all.flatMap((m) => gen.species[m.id]?.types ?? []))
+    return {
+      gens,
+      types: Object.keys(TYPE_COLORS).filter((t) => present.has(t)),
+    }
+  }, [sections, gen])
+
+  // Apply filters to every section (keeps tab positions stable; counts update)
+  const filtered = useMemo<Section[]>(() => {
+    const matches = (m: MonEntry) =>
+      (!genFilter || speciesGen(m.num) === genFilter) &&
+      (!typeFilter || (gen.species[m.id]?.types ?? []).includes(typeFilter))
+    return sections.map((s) => ({ ...s, mons: s.mons.filter(matches) }))
+  }, [sections, genFilter, typeFilter, gen])
+
   // Searching looks across every section (no duplicates)
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return sections[tab]?.mons ?? []
-    const seen = new Set<string>()
-    return sections
-      .flatMap((s) => s.mons)
-      .filter((m) => {
-        if (seen.has(m.id)) return false
-        seen.add(m.id)
-        return (
-          m.name.toLowerCase().includes(q) ||
-          String(m.num) === q.replace('#', '')
-        )
-      })
-  }, [sections, tab, query])
+    let list: MonEntry[]
+    if (!q) {
+      list = filtered[tab]?.mons ?? []
+    } else {
+      const seen = new Set<string>()
+      list = filtered
+        .flatMap((s) => s.mons)
+        .filter((m) => {
+          if (seen.has(m.id)) return false
+          seen.add(m.id)
+          return (
+            m.name.toLowerCase().includes(q) ||
+            String(m.num) === q.replace('#', '')
+          )
+        })
+    }
+    if (sort === 'bst') {
+      const total = (m: MonEntry) =>
+        gen.species[m.id] ? baseStatTotal(gen.species[m.id].stats, g) : 0
+      list = [...list].sort((a, b) => total(b) - total(a))
+    }
+    return list
+  }, [filtered, tab, query, sort, gen, g])
+
+  const filtersOn = genFilter !== 0 || typeFilter !== '' || sort !== 'dex'
+  const clearFilters = () => {
+    setGenFilter(0)
+    setTypeFilter('')
+    setSort('dex')
+  }
 
   async function pick(entry: MonEntry) {
     const features = gameFeatures(game)
@@ -138,10 +192,57 @@ function Picker({ slot, teamId }: { slot: number; teamId: string }) {
           </button>
         </div>
 
+        {/* filters */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 px-4 py-2">
+          <select
+            value={genFilter}
+            onChange={(e) => setGenFilter(Number(e.target.value))}
+            className={control}
+          >
+            <option value={0}>All generations</option>
+            {gens.map((n) => (
+              <option key={n} value={n}>
+                Gen {n}
+              </option>
+            ))}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className={control}
+          >
+            <option value="">All types</option>
+            {types.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as 'dex' | 'bst')}
+            className={control}
+          >
+            <option value="dex">Sort: Dex order</option>
+            <option value="bst">Sort: BST (high → low)</option>
+          </select>
+          {filtersOn && (
+            <button
+              onClick={clearFilters}
+              className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800"
+            >
+              Clear
+            </button>
+          )}
+          <span className="ml-auto text-xs text-slate-500">
+            {shown.length} shown
+          </span>
+        </div>
+
         {/* section tabs (hidden while searching) */}
-        {!query && sections.length > 1 && (
+        {!query && filtered.length > 1 && (
           <div className="flex gap-1 overflow-x-auto border-b border-slate-800 px-4 py-2">
-            {sections.map((s, i) => (
+            {filtered.map((s, i) => (
               <button
                 key={s.name}
                 onClick={() => setTab(i)}
@@ -179,6 +280,9 @@ function Picker({ slot, teamId }: { slot: number; teamId: string }) {
                   <span className="mt-1 w-full truncate text-center text-xs">
                     {m.name}
                   </span>
+                  <span className="text-[10px] text-slate-400">
+                    BST {bst(m)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -201,8 +305,11 @@ function Picker({ slot, teamId }: { slot: number; teamId: string }) {
                     <span className="flex-1 text-sm">{m.name}</span>
                     <span className="flex gap-1">
                       {(gen.species[m.id]?.types ?? []).map((t) => (
-                        <TypeBadge key={t} type={t} />
+                        <TypeBadge key={t} type={t} fixed />
                       ))}
+                    </span>
+                    <span className="w-16 text-right font-mono text-xs text-slate-300">
+                      {bst(m)}
                     </span>
                   </button>
                 </li>
