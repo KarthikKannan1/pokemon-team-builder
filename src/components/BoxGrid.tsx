@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BOX_SIZE, BOX_SLOTS } from '../db/db'
+import { BOX_SIZE, BOX_SLOTS, type StoredPokemon } from '../db/db'
 import { boxContents } from '../db/repo'
 import { useMons } from '../lib/data'
+import type { DragData, DropTarget } from '../lib/dnd'
 import { homeSprite, iconSprite } from '../lib/sprites'
 import { useUi } from '../store/ui'
 import { Sprite } from './Sprite'
@@ -11,8 +13,6 @@ import { Sprite } from './Sprite'
 const BOXES = BOX_SLOTS / BOX_SIZE // 32
 
 export function BoxGrid() {
-  const { selectedUid, select } = useUi()
-  const mons = useMons()
   const box = useLiveQuery(boxContents) ?? []
   const [page, setPage] = useState(0)
   const [direction, setDirection] = useState(1) // 1 = slide left, -1 = slide right
@@ -57,7 +57,7 @@ export function BoxGrid() {
         </span>
       </div>
 
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden p-1">
         <AnimatePresence mode="popLayout" initial={false} custom={direction}>
           <motion.div
             key={page}
@@ -68,38 +68,81 @@ export function BoxGrid() {
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="mx-auto grid w-fit grid-cols-6 gap-1.5"
           >
-            {Array.from({ length: BOX_SIZE }, (_, i) => {
-              const mon = bySlot.get(start + i)
-              const entry = mon && mons.get(mon.species)
-              return (
-                <button
-                  key={i}
-                  disabled={!mon}
-                  onClick={() => mon && select(mon.uid)}
-                  className={`grid h-16 w-16 place-items-center rounded-lg ${
-                    mon?.uid === selectedUid
-                      ? 'bg-red-600/30 ring-2 ring-red-500'
-                      : mon
-                        ? 'bg-slate-800 hover:bg-slate-700'
-                        : 'bg-slate-800/40'
-                  }`}
-                >
-                  {entry && (
-                    <Sprite
-                      srcs={[
-                        iconSprite(entry.pokeapiId),
-                        homeSprite(entry.pokeapiId, mon.shiny),
-                      ]}
-                      alt={entry.name}
-                      className="h-14 w-14 [image-rendering:pixelated]"
-                    />
-                  )}
-                </button>
-              )
-            })}
+            {Array.from({ length: BOX_SIZE }, (_, i) => (
+              <BoxSlot key={i} slot={start + i} mon={bySlot.get(start + i)} />
+            ))}
           </motion.div>
         </AnimatePresence>
       </div>
+      <p className="mt-2 text-center text-xs text-slate-500">
+        Drag to move · Right-click for more
+      </p>
     </div>
+  )
+}
+
+/** A Box slot: always a drop target; holds a draggable Pokémon or nothing. */
+function BoxSlot({ slot, mon }: { slot: number; mon?: StoredPokemon }) {
+  const target: DropTarget = { kind: 'box', slot }
+  const { setNodeRef, isOver } = useDroppable({
+    id: `box:${slot}`,
+    data: target,
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`h-16 w-16 rounded-lg ${isOver ? 'ring-2 ring-sky-400' : ''}`}
+    >
+      {mon ? (
+        <BoxMon mon={mon} />
+      ) : (
+        <div className="h-full w-full rounded-lg bg-slate-800/40" />
+      )}
+    </div>
+  )
+}
+
+function BoxMon({ mon }: { mon: StoredPokemon }) {
+  const { selectedUid, select, openMenu } = useUi()
+  const mons = useMons()
+  const entry = mons.get(mon.species)
+  const data: DragData = {
+    uid: mon.uid,
+    species: mon.species,
+    shiny: mon.shiny,
+  }
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: mon.uid,
+    data,
+  })
+
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      title={entry?.name}
+      onClick={() => select(mon.uid)}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        openMenu(mon.uid, e.clientX, e.clientY)
+      }}
+      className={`grid h-full w-full place-items-center rounded-lg ${isDragging ? 'opacity-30' : ''} ${
+        mon.uid === selectedUid
+          ? 'bg-sky-500/20 ring-2 ring-sky-400'
+          : 'bg-slate-800 hover:bg-slate-700'
+      }`}
+    >
+      {entry && (
+        <Sprite
+          srcs={[
+            iconSprite(entry.pokeapiId),
+            homeSprite(entry.pokeapiId, mon.shiny),
+          ]}
+          alt={entry.name}
+          className="h-14 w-14 [image-rendering:pixelated]"
+        />
+      )}
+    </button>
   )
 }
