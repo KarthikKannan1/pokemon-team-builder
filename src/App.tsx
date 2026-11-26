@@ -8,6 +8,7 @@ import { DetailsPanel } from './components/details/DetailsPanel'
 import { DndProvider } from './components/DndProvider'
 import { ContextMenu } from './components/ContextMenu'
 import { TransferDialog } from './components/TransferDialog'
+import { DataMenu } from './components/DataMenu'
 import { Toast } from './components/Toast'
 
 const Loading = () => <p className="text-slate-500">Loading…</p>
@@ -38,6 +39,11 @@ export default function App() {
         <h1 className="mr-4 text-lg font-bold">Pokémon Team Builder</h1>
         <VersionSelect />
         <TeamSwitcher />
+        <div className="ml-auto">
+          <Suspense fallback={null}>
+            <DataMenu />
+          </Suspense>
+        </div>
       </header>
 
       {/* drag & drop works anywhere inside the provider (team ↔ box) */}

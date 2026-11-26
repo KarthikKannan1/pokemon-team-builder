@@ -5,5 +5,5 @@ import { useUi } from './ui'
 export function report(result: Result) {
   const ui = useUi.getState() // zustand can be read outside React components
   if (result.ok === 'transfer') ui.openTransfer(result.uid, result.slot)
-  else if (!result.ok) ui.notify(result.message)
+  else if (!result.ok) ui.notify(`⚠️ ${result.message}`)
 }
