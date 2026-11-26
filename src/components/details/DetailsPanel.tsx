@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { updatePokemon } from '../../db/repo'
+import { baseStatTotal } from '../../lib/bst'
 import { statGen, useCore, useGameGen, useMons, useNames } from '../../lib/data'
 import { activeFormId, itemForms } from '../../lib/forms'
 import { ALL_GAMES } from '../../lib/games'
@@ -22,6 +23,7 @@ import { Sprite } from '../Sprite'
 import { TypeBadge } from '../TypeBadge'
 import { MovesSection } from './MovesSection'
 import { StatsEditor } from './StatsEditor'
+import { TeamOverview } from './TeamOverview'
 
 const SHINY_DVS: Pokemon['dvs'] = [10, 10, 10, 10] // Gen 2 shiny pattern
 const NORMAL_DVS: Pokemon['dvs'] = [15, 15, 15, 15]
@@ -78,13 +80,8 @@ function WithInfo({
 export function DetailsPanel() {
   const uid = useUi((s) => s.selectedUid)
   const mon = useLiveQuery(() => (uid ? db.pokemon.get(uid) : undefined), [uid])
-  if (!uid || !mon) {
-    return (
-      <p className="text-slate-500">
-        Select a Pokémon to see its details. (The team overview comes in #12.)
-      </p>
-    )
-  }
+  // nothing selected → team overview
+  if (!uid || !mon) return <TeamOverview />
   // key = uid: switching Pokémon resets local state like the form preview
   return <Details key={mon.uid} mon={mon} />
 }
@@ -174,6 +171,14 @@ function Details({ mon }: { mon: Pokemon }) {
           <p className="mt-2 text-xs text-slate-500">
             #{entry?.num} ·{' '}
             {mon.game === UNIVERSAL ? 'Universal' : `Gen ${f.gen}`}
+            {shownSpecies && (
+              <>
+                {' · '}
+                <span className="font-semibold text-slate-300">
+                  BST {baseStatTotal(shownSpecies.stats, statGen(mon.game))}
+                </span>
+              </>
+            )}
           </p>
 
           {/* form toggle */}
