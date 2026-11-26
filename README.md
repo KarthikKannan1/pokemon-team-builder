@@ -1,73 +1,64 @@
-# React + TypeScript + Vite
+# Pokémon Team Builder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A game-accurate team builder and personal Pokémon storage box. Build teams for any main-series game from Red/Blue to Scarlet/Violet, with movesets, abilities, items and transfers that follow the real games' rules, then export them to **Pokémon Showdown** or **PKHeX**.
 
-Currently, two official plugins are available:
+**▶ Live app: https://karthikkannan1.github.io/pokemon-team-builder/**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+![Screenshot of the team builder](docs/screenshot.png)
 
-## React Compiler
+## Why
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+I replay older Pokémon games and wanted one place to keep the Pokémon I raise in each playthrough, so I can recreate them later in PKHeX. Existing builders target competitive play in the latest game; this one follows each game's own rules.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Every game, its own rules.** Pick a game (grouped by generation) and only Pokémon, moves, items and mechanics from that game are available.
+- **Legal movesets.** Level-up, TM/HM, tutor and egg moves per game. Moves above the Pokémon's level are greyed out, egg moves require "Hatched", and event Pokémon unlock their event moves.
+- **Era-accurate details.** DVs and stat experience in Gen 1–2, IVs and EVs from Gen 3, physical/special split by type before Gen 4, natures, abilities, Tera types, Mega Evolution forms and shininess rules.
+- **Transfers between games.** Moving a Pokémon to another game checks the official transfer routes. Impossible moves are blocked; fixable ones show exactly what changes (for example, Virtual Console → Gen 7 conversion).
+- **Team and Box.** Teams of six per game plus a 960-slot Box shared across games, with drag & drop, swapping, cloning and releasing.
+- **Team overview.** Average base stat total, shared weaknesses and super-effective coverage at a glance.
+- **Export and backup.** Copy a team or the whole Box in Showdown format (also imported by PKHeX), and back up or restore everything as JSON.
+- **Offline-first.** No account and no server. Your data stays in your browser (IndexedDB).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Tech stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+| Area            | Tools                                                                                |
+| --------------- | ------------------------------------------------------------------------------------ |
+| App             | React 19, TypeScript, Vite                                                           |
+| Styling         | Tailwind CSS v4, Headless UI, Motion                                                 |
+| State & storage | Zustand, Dexie (IndexedDB)                                                           |
+| Drag & drop     | dnd-kit                                                                              |
+| Data            | PokéAPI CSV dump, `@pkmn/dex` (Pokémon Showdown data), preprocessed into static JSON |
+| Quality         | Vitest, ESLint, Prettier, GitHub Actions CI, branch protection                       |
+| Hosting         | GitHub Pages, deployed automatically on every merge to `main`                        |
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## How it works
+
+- **Data pipeline** (`scripts/`): downloads PokéAPI CSVs and combines them with Showdown's data into small per-game and per-generation JSON files in `public/data/`. The app loads only what the selected game needs.
+- **Rules engine** (`src/lib/`): pure, unit-tested functions for move legality, stat formulas, transfer routes and the fixes a transfer needs.
+- **Storage** (`src/db/`): a repository layer over IndexedDB. Moves and swaps run in transactions so a Pokémon is never lost or duplicated.
+
+## Run it locally
+
+Requires Node.js 26+.
+
+```bash
+npm install
+npm run dev        # http://localhost:5173/pokemon-team-builder/
+npm test           # unit tests
+npm run build      # production build in dist/
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+The generated data is committed, so you only need these to rebuild it:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run fetch-raw  # download the PokéAPI CSVs into raw/
+npm run data       # rebuild public/data/
 ```
+
+## Credits and disclaimer
+
+Data from [PokéAPI](https://pokeapi.co/) and [Pokémon Showdown](https://github.com/smogon/pokemon-showdown) (via [`@pkmn/dex`](https://github.com/pkmn/ps)). Sprites are loaded from PokéAPI and Pokémon Showdown.
+
+This is a non-commercial fan project and is not affiliated with Nintendo, Game Freak, Creatures or The Pokémon Company. Pokémon and all related names are trademarks of their respective owners.
