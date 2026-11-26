@@ -7,6 +7,7 @@ import { PickerModal } from './components/PickerModal'
 import { DetailsPanel } from './components/details/DetailsPanel'
 import { DndProvider } from './components/DndProvider'
 import { ContextMenu } from './components/ContextMenu'
+import { TransferDialog } from './components/TransferDialog'
 import { Toast } from './components/Toast'
 
 const Loading = () => <p className="text-slate-500">Loading…</p>
@@ -72,6 +73,7 @@ export default function App() {
       <Suspense fallback={null}>
         <PickerModal />
         <ContextMenu />
+        <TransferDialog />
       </Suspense>
       <Toast />
     </div>

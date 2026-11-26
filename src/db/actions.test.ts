@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ALL_GAMES } from '../lib/games'
 import { newPokemon } from '../lib/pokemon'
-import { dropOnBox, dropOnTeam, sendToTeam } from './actions'
+import { dropOnBox, dropOnTeam, sendToTeam, transferToTeam } from './actions'
 import { db } from './db'
 import { addToBox, addToTeam, createTeam } from './repo'
 
@@ -28,10 +28,32 @@ describe('drag & drop actions', () => {
     })
   })
 
-  it('blocks a Pokémon from another game', async () => {
+  it('asks for a transfer when the Pokémon is from another game', async () => {
     const team = await createTeam(EMERALD, 'Main')
     const mon = await addToBox(newPokemon('bulbasaur', FRLG))
-    expect((await dropOnTeam(mon.uid, team.id, EMERALD, 0)).ok).toBe(false)
+    expect(await dropOnTeam(mon.uid, team.id, EMERALD, 0)).toEqual({
+      ok: 'transfer',
+      uid: mon.uid,
+      slot: 0,
+    })
+    expect(await db.pokemon.get(mon.uid)).toMatchObject({ place: 'box' }) // nothing moved yet
+  })
+
+  it('transferToTeam saves the fixed Pokémon into the team', async () => {
+    const team = await createTeam(EMERALD, 'Main')
+    const mon = await addToBox(newPokemon('bulbasaur', FRLG))
+    const result = await transferToTeam(
+      { ...mon, game: EMERALD, item: '' },
+      team.id,
+      0,
+    )
+    expect(result).toEqual({ ok: true })
+    expect(await db.pokemon.get(mon.uid)).toMatchObject({
+      place: 'team',
+      slot: 0,
+      game: EMERALD,
+      originGame: FRLG,
+    })
   })
 
   it('only swaps into the team if the Box Pokémon fits this game', async () => {

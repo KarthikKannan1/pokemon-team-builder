@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { copy, remove, sendToBox, sendToTeam, type Result } from '../db/actions'
 import { db, type StoredPokemon } from '../db/db'
 import { useMons } from '../lib/data'
+import { report } from '../store/report'
 import { useUi } from '../store/ui'
 
 const WIDTH = 208 // w-52
@@ -44,15 +45,14 @@ export function ContextMenu() {
 }
 
 function MenuBody({ mon, x, y }: { mon: StoredPokemon; x: number; y: number }) {
-  const { teamId, game, selectedUid, closeMenu, notify } = useUi()
+  const { teamId, game, selectedUid, closeMenu } = useUi()
   const mons = useMons()
   const [confirming, setConfirming] = useState(false)
   const name = mon.nickname || mons.get(mon.species)?.name || mon.species
 
   async function run(action: () => Promise<Result>) {
     closeMenu()
-    const result = await action()
-    if (!result.ok) notify(result.message)
+    report(await action())
   }
 
   function onRelease() {

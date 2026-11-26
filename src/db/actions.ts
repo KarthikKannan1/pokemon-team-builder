@@ -1,13 +1,18 @@
 import { TEAM_SIZE, db } from './db'
 import { clone, moveToBox, moveToTeam, release } from './repo'
+import type { Pokemon } from '../lib/types'
 
-/** Every user action returns this instead of throwing, so the UI can show a message. */
-export type Result = { ok: true } | { ok: false; message: string }
+/**
+ * Every user action returns this instead of throwing:
+ * ok → done · not ok → show the message · 'transfer' → it's from another game, ask the user first.
+ */
+export type Result =
+  | { ok: true }
+  | { ok: false; message: string }
+  | { ok: 'transfer'; uid: string; slot: number }
 
 const OK: Result = { ok: true }
 const fail = (message: string): Result => ({ ok: false, message })
-const OTHER_GAME =
-  'That Pokémon is from another game. Moving between games comes in the next update.'
 
 async function attempt(fn: () => Promise<unknown>): Promise<Result> {
   try {
@@ -29,7 +34,7 @@ export async function dropOnTeam(
   if (!mon) return fail('Pokémon not found.')
   if (mon.place === 'team' && mon.teamId === teamId && mon.slot === slot)
     return OK
-  if (mon.game !== game) return fail(OTHER_GAME)
+  if (mon.game !== game) return { ok: 'transfer', uid, slot }
   return attempt(() => moveToTeam(uid, teamId, slot))
 }
 
@@ -65,7 +70,6 @@ export async function sendToTeam(
 ): Promise<Result> {
   const mon = await db.pokemon.get(uid)
   if (!mon) return fail('Pokémon not found.')
-  if (mon.game !== game) return fail(OTHER_GAME)
   const used = new Set(
     (await db.pokemon.where('teamId').equals(teamId).toArray()).map(
       (p) => p.slot,
@@ -76,7 +80,32 @@ export async function sendToTeam(
   )
   if (slot === undefined)
     return fail('The team is full. Move someone to the Box first.')
+  if (mon.game !== game) return { ok: 'transfer', uid, slot }
   return attempt(() => moveToTeam(uid, teamId, slot))
+}
+
+/** After the user accepts the transfer prompt: save the fixed Pokémon and put it in the team, in one step. */
+export function transferToTeam(
+  fixed: Pokemon,
+  teamId: string,
+  slot: number,
+): Promise<Result> {
+  return attempt(() =>
+    db.transaction('rw', db.pokemon, async () => {
+      const {
+        place: _place,
+        teamId: _teamId,
+        slot: _slot,
+        ...fields
+      } = fixed as Pokemon & {
+        place?: unknown
+        teamId?: unknown
+        slot?: unknown
+      }
+      await db.pokemon.update(fixed.uid, fields)
+      await moveToTeam(fixed.uid, teamId, slot)
+    }),
+  )
 }
 
 /** Right-click → Clone (PKHeX-style copy into the Box). */

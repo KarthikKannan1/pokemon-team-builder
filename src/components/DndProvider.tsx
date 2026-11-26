@@ -10,17 +10,17 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { dropOnBox, dropOnTeam, type Result } from '../db/actions'
+import { dropOnBox, dropOnTeam } from '../db/actions'
 import { useMons } from '../lib/data'
 import type { DragData, DropTarget } from '../lib/dnd'
 import { homeSprite, iconSprite } from '../lib/sprites'
+import { report } from '../store/report'
 import { useUi } from '../store/ui'
 import { Sprite } from './Sprite'
 
 export function DndProvider({ children }: { children: ReactNode }) {
   const teamId = useUi((s) => s.teamId)
   const game = useUi((s) => s.game)
-  const notify = useUi((s) => s.notify)
   const mons = useMons()
   const [dragging, setDragging] = useState<DragData | null>(null)
 
@@ -36,15 +36,15 @@ export function DndProvider({ children }: { children: ReactNode }) {
     const target = e.over?.data.current as DropTarget | undefined
     if (!target) return // dropped outside any slot
     const uid = String(e.active.id)
-    let result: Result
     if (target.kind === 'team') {
-      result = teamId
-        ? await dropOnTeam(uid, teamId, game, target.slot)
-        : { ok: false, message: 'Create a team first.' }
+      report(
+        teamId
+          ? await dropOnTeam(uid, teamId, game, target.slot)
+          : { ok: false, message: 'Create a team first.' },
+      )
     } else {
-      result = await dropOnBox(uid, target.slot, game)
+      report(await dropOnBox(uid, target.slot, game))
     }
-    if (!result.ok) notify(result.message)
   }
 
   const entry = dragging ? mons.get(dragging.species) : undefined

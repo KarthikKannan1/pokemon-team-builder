@@ -21,6 +21,21 @@ export const gameName = (id: string) =>
     ? 'Pokémon HOME'
     : (GAME_GROUPS.find((g) => g.games.some((x) => x.id === id))?.name ?? id)
 
+/** Longest ids first, so "ultra-sun-ultra-moon" is replaced before anything shorter inside it. */
+const GAME_IDS = [UNIVERSAL, ...ALL_GAMES.map((g) => g.id)].sort(
+  (a, b) => b.length - a.length,
+)
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** "red-blue to emerald" → "Red / Blue to Emerald" (rules.ts speaks in ids). */
+export function withGameNames(text: string): string {
+  return GAME_IDS.reduce(
+    (t, id) =>
+      t.replace(new RegExp(`\\b${escapeRegex(id)}\\b`, 'g'), gameName(id)),
+    text,
+  )
+}
+
 /** Natures in their official order — Gen 1–2 → Gen 7 transfers pick one by EXP mod 25. */
 const NATURES = [
   'Hardy',
@@ -96,7 +111,7 @@ export function checkEntry(
   const fixes: Fix[] = []
 
   const transfer = canTransfer(mon.originGame, target)
-  if (!transfer.ok) blockers.push(transfer.reason)
+  if (!transfer.ok) blockers.push(withGameNames(transfer.reason))
   if (target === UNIVERSAL || !ctx) return { blockers, fixes } // universal = sandbox
 
   const speciesName = ctx.mons.get(mon.species)?.name ?? mon.species
