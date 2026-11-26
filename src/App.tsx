@@ -5,6 +5,10 @@ import { TeamList } from './components/TeamList'
 import { BoxGrid } from './components/BoxGrid'
 import { PickerModal } from './components/PickerModal'
 import { DetailsPanel } from './components/details/DetailsPanel'
+import { DndProvider } from './components/DndProvider'
+import { ContextMenu } from './components/ContextMenu'
+import { TransferDialog } from './components/TransferDialog'
+import { Toast } from './components/Toast'
 
 const Loading = () => <p className="text-slate-500">Loading…</p>
 
@@ -36,28 +40,42 @@ export default function App() {
         <TeamSwitcher />
       </header>
 
-      {/* 40% team + box | 60% details (sticky, scrolls on its own). Stacks on small screens. */}
-      <main className="grid gap-4 p-6 lg:grid-cols-[2fr_3fr] lg:items-start">
-        <div className="space-y-4">
-          <Panel title="Team">
-            <TeamList />
-          </Panel>
-          <Panel title="Box">
-            <BoxGrid />
-          </Panel>
-        </div>
+      {/* drag & drop works anywhere inside the provider (team ↔ box) */}
+      <Suspense
+        fallback={
+          <div className="p-6">
+            <Loading />
+          </div>
+        }
+      >
+        <DndProvider>
+          {/* 40% team + box | 60% details (sticky, scrolls on its own). Stacks on small screens. */}
+          <main className="grid gap-4 p-6 lg:grid-cols-[2fr_3fr] lg:items-start">
+            <div className="space-y-4">
+              <Panel title="Team">
+                <TeamList />
+              </Panel>
+              <Panel title="Box">
+                <BoxGrid />
+              </Panel>
+            </div>
 
-        <Panel
-          title="Details"
-          className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
-        >
-          <DetailsPanel />
-        </Panel>
-      </main>
+            <Panel
+              title="Details"
+              className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
+            >
+              <DetailsPanel />
+            </Panel>
+          </main>
+        </DndProvider>
+      </Suspense>
 
       <Suspense fallback={null}>
         <PickerModal />
+        <ContextMenu />
+        <TransferDialog />
       </Suspense>
+      <Toast />
     </div>
   )
 }
