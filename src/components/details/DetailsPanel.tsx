@@ -13,7 +13,7 @@ import {
   speciesEvents,
 } from '../../lib/obtained'
 import { gameFeatures, UNIVERSAL } from '../../lib/rules'
-import { animatedSprite, homeSprite } from '../../lib/sprites'
+import { monSprites } from '../../lib/sprites'
 import { isShinyDVs } from '../../lib/stats'
 import type { Obtained, Pokemon } from '../../lib/types'
 import { useUi } from '../../store/ui'
@@ -146,11 +146,12 @@ function Details({ mon }: { mon: Pokemon }) {
           <div className="grid min-h-0 w-full flex-1 place-items-center">
             {shown && (
               <Sprite
-                key={`${shown.id}-${mon.shiny}`}
-                srcs={[
-                  animatedSprite(shown, mon.shiny),
-                  homeSprite(shown.pokeapiId, mon.shiny),
-                ]}
+                key={`${shown.id}-${mon.shiny}-${mon.gender}`}
+                srcs={monSprites(shown, {
+                  shiny: mon.shiny,
+                  female: mon.gender === 'F',
+                  animated: true,
+                })}
                 alt={shown.name}
                 maxScale={2}
                 className="max-h-full max-w-full"

@@ -17,6 +17,8 @@ export interface MonEntry {
   baseSpecies: string
   forme?: string
   prevo?: string
+  /** Base form has a different female sprite. */
+  genderDiff?: true
 }
 
 /** [move id, method, level] — L level-up, M TM/HM/TR, T tutor, E egg */

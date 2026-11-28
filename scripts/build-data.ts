@@ -42,6 +42,7 @@ export interface MonEntry {
   baseSpecies: string
   forme?: string
   prevo?: string
+  genderDiff?: true // base form looks different when female (PokéAPI has_gender_differences)
 }
 
 const speciesById = new Map(readCsv('pokemon_species').map((s) => [s.id, s]))
@@ -72,6 +73,12 @@ for (const p of readCsv('pokemon')) {
     baseSpecies: toID(s.baseSpecies),
     forme: s.forme || undefined,
     prevo: s.prevo ? toID(s.prevo) : undefined,
+    // Only the base form: Megas, regional forms etc. have no female sprite, and
+    // Meowstic-F / Indeedee-F are separate formes with their own sprites
+    genderDiff:
+      !s.forme && speciesById.get(p.species_id)?.has_gender_differences === '1'
+        ? true
+        : undefined,
   })
 }
 
