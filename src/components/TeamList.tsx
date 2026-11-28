@@ -5,7 +5,7 @@ import { teamMembers } from '../db/repo'
 import { useGameGen, useMons } from '../lib/data'
 import type { DragData, DropTarget } from '../lib/dnd'
 import { activeFormId } from '../lib/forms'
-import { homeSprite, itemIcon } from '../lib/sprites'
+import { itemIcon, monSprites } from '../lib/sprites'
 import { useUi } from '../store/ui'
 import { Sprite } from './Sprite'
 import { TypeBadge } from './TypeBadge'
@@ -95,7 +95,15 @@ function TeamCard({ mon }: { mon: StoredPokemon }) {
     >
       <div className="relative h-20 w-20">
         <Sprite
-          srcs={[homeSprite(form?.pokeapiId ?? 0, mon.shiny)]}
+          key={`${form?.id}-${mon.shiny}-${mon.gender}`} // restart the fallback list when these change
+          srcs={
+            form
+              ? monSprites(form, {
+                  shiny: mon.shiny,
+                  female: mon.gender === 'F',
+                })
+              : []
+          }
           alt=""
           className="h-20 w-20"
         />
