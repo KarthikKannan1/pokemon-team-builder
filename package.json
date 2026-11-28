@@ -12,7 +12,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run --passWithNoTests",
     "fetch-raw": "tsx scripts/fetch-raw.ts",
-    "data": "tsx scripts/build-data.ts && tsx scripts/build-typechart.ts"
+    "data": "tsx scripts/build-data.ts && tsx scripts/build-typechart.ts && tsx scripts/build-evolutions.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

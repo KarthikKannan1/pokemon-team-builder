@@ -1,12 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { copy, remove, sendToBox, sendToTeam, type Result } from '../db/actions'
+import {
+  copy,
+  remove,
+  sendToBox,
+  sendToTeam,
+  update,
+  type Result,
+} from '../db/actions'
 import { db, type StoredPokemon } from '../db/db'
-import { useMons } from '../lib/data'
+import { useGame, useGameGen, useMons } from '../lib/data'
+import { evolutionOptions, evolve, type Evolution } from '../lib/evolution'
+import { useEvolutions } from '../lib/evolutionData'
 import { report } from '../store/report'
 import { useUi } from '../store/ui'
 
-const WIDTH = 208 // w-52
+const WIDTH = 256 // w-64
+const ITEM_HEIGHT = 34
 
 /** Right-click menu for a Pokémon. */
 export function ContextMenu() {
@@ -33,7 +43,6 @@ export function ContextMenu() {
   }, [menu, closeMenu])
 
   if (!menu || !mon) return null
-  // key → a new menu starts fresh (no leftover "click again to release")
   return (
     <MenuBody
       key={`${menu.uid}-${menu.x}-${menu.y}`}
@@ -45,27 +54,49 @@ export function ContextMenu() {
 }
 
 function MenuBody({ mon, x, y }: { mon: StoredPokemon; x: number; y: number }) {
-  const { teamId, game, selectedUid, closeMenu } = useUi()
+  const { teamId, game, selectedUid, closeMenu, notify } = useUi()
   const mons = useMons()
-  const [confirming, setConfirming] = useState(false)
+  // the Pokémon's own game (a Box Pokémon may be from another game than the one selected)
+  const gameData = useGame(mon.game)
+  const gen = useGameGen(mon.game)
+  const evolutions = useEvolutions()
+
   const name = mon.nickname || mons.get(mon.species)?.name || mon.species
+  const options = evolutionOptions(mon.species, evolutions, gameData)
 
   async function run(action: () => Promise<Result>) {
     closeMenu()
     report(await action())
   }
 
+  async function onEvolve(evo: Evolution) {
+    closeMenu()
+    const evolved = evolve(
+      mon,
+      evo,
+      gen.species[mon.species],
+      gen.species[evo.to],
+    )
+    const result = await update(mon.uid, {
+      species: evolved.species,
+      ability: evolved.ability,
+      level: evolved.level,
+    })
+    if (result.ok !== true) return report(result)
+    const toName = mons.get(evo.to)?.name ?? evo.to
+    const raised =
+      evolved.level > mon.level ? ` Level raised to ${evolved.level}.` : ''
+    notify(`✨ ${name} evolved into ${toName}!${raised}`)
+  }
+
   function onRelease() {
-    if (!confirming) {
-      setConfirming(true) // first click arms it
-      return
-    }
     if (selectedUid === mon.uid) useUi.setState({ selectedUid: null })
     run(() => remove(mon.uid))
   }
 
   const item =
     'block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-slate-700'
+  const height = 40 + (3 + options.length) * ITEM_HEIGHT
 
   return (
     <>
@@ -80,13 +111,29 @@ function MenuBody({ mon, x, y }: { mon: StoredPokemon; x: number; y: number }) {
       />
       <div
         role="menu"
-        className="fixed z-50 w-52 rounded-lg border border-slate-700 bg-slate-900 p-1 text-slate-100 shadow-2xl"
+        className="fixed z-50 w-64 rounded-lg border border-slate-700 bg-slate-900 p-1 text-slate-100 shadow-2xl"
         style={{
           left: Math.min(x, window.innerWidth - WIDTH - 8),
-          top: Math.min(y, window.innerHeight - 180),
+          top: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
         }}
       >
         <p className="truncate px-3 py-1 text-xs text-slate-400">{name}</p>
+
+        {options.map((evo) => (
+          <button
+            key={evo.to}
+            role="menuitem"
+            className={item}
+            onClick={() => onEvolve(evo)}
+          >
+            ✨ Evolve into {mons.get(evo.to)?.name ?? evo.to}{' '}
+            <span className="text-xs text-slate-400">({evo.method})</span>
+          </button>
+        ))}
+        {options.length > 0 && (
+          <div className="my-1 border-t border-slate-800" />
+        )}
+
         {mon.place === 'team' ? (
           <button
             role="menuitem"
@@ -116,9 +163,9 @@ function MenuBody({ mon, x, y }: { mon: StoredPokemon; x: number; y: number }) {
         <button
           role="menuitem"
           onClick={onRelease}
-          className={`${item} ${confirming ? 'bg-red-600 font-semibold hover:bg-red-500' : 'text-red-300'}`}
+          className={`${item} text-red-300 hover:bg-red-600 hover:text-white`}
         >
-          {confirming ? 'Click again to release' : '🗑️ Release'}
+          🗑️ Release
         </button>
       </div>
     </>
