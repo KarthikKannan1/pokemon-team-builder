@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { parse } from 'csv-parse/sync'
 import { Dex } from '@pkmn/dex'
+import { dexName } from '../src/lib/dexNames'
 import { ALL_GAMES } from '../src/lib/games'
 
 type Row = Record<string, string>
@@ -183,13 +184,6 @@ const NO_NATIONAL = new Set([
   'scarlet-violet',
 ])
 
-/** "kalos-central" → "Kalos Central" */
-const humanize = (id: string) =>
-  id
-    .split('-')
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ')
-
 interface DexSection {
   name: string
   species: number[] // National Dex numbers, in this dex's order
@@ -206,7 +200,7 @@ function dexSectionsFor(game: (typeof ALL_GAMES)[number]): DexSection[] {
         (a, b) => a[0] - b[0],
       )
       sections.push({
-        name: `${humanize(dexNames.get(dexId)!)} Pokédex`,
+        name: dexName(dexNames.get(dexId)!),
         species: entries.map((e) => e[1]),
       })
     }
