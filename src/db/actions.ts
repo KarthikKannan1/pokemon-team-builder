@@ -108,6 +108,10 @@ export function transferToTeam(
   )
 }
 
+/** Save changes to one Pokémon (e.g. evolving). */
+export const update = (uid: string, changes: Partial<Pokemon>) =>
+  attempt(() => db.pokemon.update(uid, changes))
+
 /** Right-click → Clone (PKHeX-style copy into the Box). */
 export const copy = (uid: string) => attempt(() => clone(uid))
 
